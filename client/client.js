@@ -2,6 +2,8 @@
 /*jshint -W097*/
 /*jshint browser: true*/
 "use strict";
+let lerp = (a, b, x) => a + x * (b - a);
+let lerpAngle = (a, b, x) => Math.atan2(lerp(Math.sin(a), Math.sin(b), x), lerp(Math.cos(a), Math.cos(b), x));
 
 // Fundamental requires <3
 var global = {
@@ -515,31 +517,26 @@ var color = {
 
 // Color functions
 let mixColors = (() => {
-    /** https://gist.github.com/jedfoster/7939513 **/
-    function d2h(d) {
-        return d.toString(16);
-    } // convert a decimal value to hex
-    function h2d(h) {
-        return parseInt(h, 16);
-    } // convert a hex value to decimal
-    return (color_2, color_1, weight = 0.5) => {
-        if (weight === 1) return color_1;
-        if (weight === 0) return color_2;
-        var col = "#";
-        for (var i = 1; i <= 6; i += 2) {
-            // loop through each of the 3 hex pairs—red, green, and blue, skip the '#'
-            var v1 = h2d(color_1.substr(i, 2)), // extract the current pairs
-                v2 = h2d(color_2.substr(i, 2)),
-                // combine the current pairs from each source color, according to the specified weight
-                val = d2h(Math.floor(v2 + (v1 - v2) * weight));
+    const generateHex = (r, g, b) => {
+        r = r.toString(16);
+        g = g.toString(16);
+        b = b.toString(16);
 
-            while (val.length < 2) {
-                val = "0" + val;
-            } // prepend a '0' if val results in a single digit
-            col += val; // concatenate val to our new color string
-        }
-        return col; // PROFIT!
-    };
+        while (r.length < 2) r = "0" + r;
+        while (g.length < 2) g = "0" + g;
+        while (b.length < 2) b = "0" + b;
+
+        return "#" + r + g + b;
+    }
+
+    const approximateColor1ToColor2ByPercent = (color1, color2, percent) => generateHex(Math.round(lerp(parseInt(color1[1] + color1[2], 16), parseInt(color2[1] + color2[2], 16), percent)), Math.round(lerp(parseInt(color1[3] + color1[4], 16), parseInt(color2[3] + color2[4], 16), percent)), Math.round(lerp(parseInt(color1[5] + color1[6], 16), parseInt(color2[5] + color2[6], 16), percent)));
+
+    const cache = {};
+    return (color1, color2, percent) => {
+        let str = color1 + color2 + percent;
+        if (!cache[str]) cache[str] = approximateColor1ToColor2ByPercent(color1, color2, percent);
+        return cache[str];
+    }
 })();
 
 function getColor(colorNumber) {
@@ -584,9 +581,8 @@ function getColor(colorNumber) {
             return color.white;
         case 19:
             return color.guiblack;
-
         default:
-            return "#FF0000";
+            return Date.now() % 300 > 150 ? color.purple : color.black;
     }
 }
 
@@ -606,7 +602,7 @@ function getZoneColor(cell, real) {
             return color.red;
         case "bas4":
             return color.pink;
-        //case 'nest': return (real) ? color.purple : color.lavender;
+        case 'nest': return real ? color.purple : color.lavender;
         default:
             return real ? color.white : color.lgrey;
     }
@@ -625,6 +621,7 @@ function setColor(context, givenColor) {
 // Get mockups <3
 var mockups = [];
 util.pullJSON("mockups").then((data) => (mockups = data));
+
 // Mockup functions
 function getEntityImageFromMockup(index, color = mockups[index].color) {
     let mockup = mockups[index];
@@ -1194,7 +1191,6 @@ window.onload = () => {
     util.retrieveFromLocalStorage("playerNameInput");
     util.retrieveFromLocalStorage("playerKeyInput");
     util.retrieveFromLocalStorage("optScreenshotMode");
-    util.retrieveFromLocalStorage("optPredictive");
     util.retrieveFromLocalStorage("optFancy");
     util.retrieveFromLocalStorage("optColors");
     util.retrieveFromLocalStorage("optNoPointy");
@@ -1536,49 +1532,6 @@ var player = {
     lastUpdate: 0,
     time: 0,
 };
-
-// Jumping the gun on motion
-var moveCompensation = (() => {
-    let xx = 0,
-        yy = 0,
-        vx = 0,
-        vy = 0;
-    return {
-        reset: () => {
-            xx = 0;
-            yy = 0;
-        },
-        get: () => {
-            if (config.lag.unresponsive) {
-                return {
-                    x: 0,
-                    y: 0,
-                };
-            }
-            return {
-                x: xx,
-                y: yy,
-            };
-        },
-        iterate: (g) => {
-            if (global.died || global.gameStart) return 0;
-            // Add motion
-            let damp = gui.accel / gui.topSpeed,
-                len = Math.sqrt(g.x * g.x + g.y * g.y);
-            vx += (gui.accel * g.x) / len;
-            vy += (gui.accel * g.y) / len;
-            // Dampen motion
-            let motion = Math.sqrt(vx * vx + vy * vy);
-            if (motion > 0 && damp) {
-                let finalvelocity = motion / (damp / roomSpeed + 1);
-                vx = (finalvelocity * vx) / motion;
-                vy = (finalvelocity * vy) / motion;
-            }
-            xx += vx;
-            yy += vy;
-        },
-    };
-})();
 
 // Prepare the websocket for definition
 const socketInit = (() => {
@@ -2912,7 +2865,6 @@ const socketInit = (() => {
                             if (isNaN(player.rendery)) {
                                 player.rendery = player.y;
                             }
-                            moveCompensation.reset();
                             // Fov stuff
                             player.view = camfov;
                             if (isNaN(player.renderv) || player.renderv === 0) {
@@ -3017,8 +2969,6 @@ function startGame() {
     util.submitToLocalStorage("optNoPointy");
     config.graphical.fancyAnimations =
         !document.getElementById("optFancy").checked;
-    util.submitToLocalStorage("optPredictive");
-    config.lag.unresponsive = document.getElementById("optPredictive").checked;
     util.submitToLocalStorage("optBorders");
     switch (document.getElementById("optBorders").value) {
         case "normal":
@@ -3062,10 +3012,6 @@ function startGame() {
         animloop();
     }
     window.canvas.socket = global.socket;
-    setInterval(
-        () => moveCompensation.iterate(global.socket.cmd.getMotion()),
-        1000 / 30
-    );
     document.getElementById("gameCanvas").focus();
     window.onbeforeunload = () => {
         return true;
@@ -3644,59 +3590,6 @@ const gameDraw = (() => {
             ctx.stroke();
         };
     }
-    // Lag compensation functions
-    const compensation = (() => {
-        // Protected functions
-        function interpolate(p1, p2, v1, v2, ts, tt) {
-            let k = Math.cos((1 + tt) * Math.PI);
-            return 0.5 * (((1 + tt) * v1 + p1) * (k + 1) + (-tt * v2 + p2) * (1 - k));
-        }
-
-        function extrapolate(p1, p2, v1, v2, ts, tt) {
-            return p2 + (p2 - p1) * tt; /*v2 + 0.5 * tt * (v2 - v1) * ts*/
-        }
-        // Useful thing
-        function angleDifference(sourceA, targetA) {
-            let mod = function (a, n) {
-                return ((a % n) + n) % n;
-            };
-            let a = targetA - sourceA;
-            return mod(a + Math.PI, 2 * Math.PI) - Math.PI;
-        }
-        // Constructor
-        return () => {
-            // Protected vars
-            let timediff = 0,
-                t = 0,
-                tt = 0,
-                ts = 0;
-            // Methods
-            return {
-                set: (time = player.time, interval = metrics.rendergap) => {
-                    t = Math.max(getNow() - time - 80, -interval);
-                    if (t > 150 && t < 1000) {
-                        t = 150;
-                    }
-                    if (t > 1000) {
-                        t = (1000 * 1000 * Math.sin(t / 1000 - 1)) / t + 1000;
-                    }
-                    tt = t / interval;
-                    ts = (config.roomSpeed * 30 * t) / 1000;
-                },
-                predict: (p1, p2, v1, v2) => {
-                    return t >= 0
-                        ? extrapolate(p1, p2, v1, v2, ts, tt)
-                        : interpolate(p1, p2, v1, v2, ts, tt);
-                },
-                predictFacing: (f1, f2) => {
-                    return f1 + (1 + tt) * angleDifference(f1, f2);
-                },
-                getPrediction: () => {
-                    return t;
-                },
-            };
-        };
-    })();
     // Make graphs
     const timingGraph = graph(),
         lagGraph = graph(),
@@ -3817,20 +3710,14 @@ const gameDraw = (() => {
         let px, py;
         {
             // Move the camera
-            let motion = compensation();
-            motion.set();
             let smear = {
                 x: 0,
                 y: 0,
             }; // moveCompensation.get();
-            GRAPHDATA = motion.getPrediction();
+            GRAPHDATA = Math.random();
             // Don't move the camera if you're dead. This helps with jitter issues
-            player.renderx =
-                motion.predict(player.lastx, player.x, player.lastvx, player.vx) +
-                smear.x;
-            player.rendery =
-                motion.predict(player.lasty, player.y, player.lastvy, player.vy) +
-                smear.y;
+            player.renderx = lerp(player.renderx, player.x, 0.06);
+            player.rendery = lerp(player.rendery, player.y, 0.06);
             //player.renderx += (desiredx - player.renderx) / 5;
             //player.rendery += (desiredy - player.rendery) / 5;
             px = ratio * player.renderx;
@@ -3912,44 +3799,20 @@ const gameDraw = (() => {
         {
             // Draw things
             entities.forEach(function entitydrawingloop(instance) {
-                if (!instance.render.draws) {
-                    return 1;
-                }
-                let motion = compensation();
-                if (instance.render.status.getFade() === 1) {
-                    motion.set();
-                } else {
-                    motion.set(instance.render.lastRender, instance.render.interval);
-                }
-                instance.render.x = motion.predict(
-                    instance.render.lastx,
-                    instance.x,
-                    instance.render.lastvx,
-                    instance.vx
-                );
-                instance.render.y = motion.predict(
-                    instance.render.lasty,
-                    instance.y,
-                    instance.render.lastvy,
-                    instance.vy
-                );
-                instance.render.f =
-                    instance.id === gui.playerid && !instance.twiggle
-                        ? Math.atan2(target.y, target.x)
-                        : motion.predictFacing(instance.render.lastf, instance.facing);
-                let x =
-                    instance.id === gui.playerid ? 0 : ratio * instance.render.x - px,
-                    y = instance.id === gui.playerid ? 0 : ratio * instance.render.y - py;
+                if (!instance.render.draws) return 1;
+                instance.render.x = lerp(instance.render.x, instance.x + instance.vx, 0.1);
+                instance.render.y = lerp(instance.render.y, instance.y + instance.vy, 0.1);
+                instance.render.f = instance.id === gui.playerid && !instance.twiggle ? Math.atan2(target.y, target.x) : lerpAngle(instance.render.f, instance.facing + instance.vfacing, 0.1);
+                let x = ratio * instance.render.x - px,
+                    y = ratio * instance.render.y - py;
                 x += global.screenWidth / 2;
                 y += global.screenHeight / 2;
                 drawEntity(x, y, instance, ratio, 1.1, instance.render.f);
             });
             if (!config.graphical.screenshotMode) {
                 entities.forEach(function entityhealthdrawingloop(instance) {
-                    let x =
-                        instance.id === gui.playerid ? 0 : ratio * instance.render.x - px,
-                        y =
-                            instance.id === gui.playerid ? 0 : ratio * instance.render.y - py;
+                    let x = ratio * instance.render.x - px,
+                        y = ratio * instance.render.y - py;
                     x += global.screenWidth / 2;
                     y += global.screenHeight / 2;
                     drawHealth(x, y, instance, ratio);
