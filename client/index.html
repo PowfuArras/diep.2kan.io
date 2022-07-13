@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" id="mainBody">
+<link href="https://fonts.googleapis.com/css?family=Ubuntu:400,700" rel="stylesheet">
+
+<html lang="en" id="mainBody">
+
+<head>
+	<meta charset="UTF-8" />
+	<title>Diep.2kan.io</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+	<link rel="stylesheet" href="/style.css" />
+	<meta name="description" content="Diep 2kan is a fan-made version of arrasio and diepio, with new content to play around with.">
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#252323">
+	<meta name="msapplication-TileColor" content="#252323">
+	<meta name="theme-color" content="#252323">
+</head>
+
+<body oncontextmenu="return false;" id="mainBody">
+	<div id="gameAreaWrapper">
+		<canvas id="gameCanvas" tabindex="1" id="cvs" tabindex="1"></canvas>
+	</div>
+	<div id="mainWrapper">
+		<div id="startMenuWrapper">
+			<div id="startMenu">
+				<div id="twitterHolder" class="startMenuHolder">
+					<p>Oh my god no discord server lol</p>
+				</div>
+				<div class="startMenuHolder">
+					<div class="sliderHolder">
+						<div class="slider" id="startMenuSlidingContent">
+							<center><img class="icon" src="/diep2kan.png" alt="diep 2kan" /></center>
+							<h1>diep.2kan.io</h1>
+							<div id="serverName">
+								<h4 class="nopadding">Connecting...</h4>
+							</div>
+							<input type="text" autofocus tabindex="1" spellcheck="false"
+								placeholder="This is the tale of:" id="playerNameInput" maxlength="24" />
+							<input type="text" class="conceal" tabindex="3" placeholder="Token required."
+								id="playerKeyInput" maxlength="64" />
+						</div>
+						<div class="slider" id="startMenuSlidingTrigger">
+							<h3 class="nopadding">view options/help 🡲</h3>
+						</div>
+						<div class="slider" id="startMenuSlidingContent">
+							<br />
+							<optionsHeader>Advanced Controls:</optionsHeader><br />
+							<table>
+								<tr>
+									<td><b>E</b>: auto-fire</td>
+									<td><b>C</b>: auto-spin</td>
+								</tr>
+								<tr>
+									<td><b>R</b>: disable auto-weapons</td>
+									<td><b>N</b>: level up (sandbox)</td>
+								</tr>
+							</table>
+							<optionsHeader>Options:</optionsHeader>
+							<select id="optColors" tabindex="-1">
+								<option value="normal">Light Colors</option>
+								<option value="dark">Dark Colors</option>
+								<option value="natural">Natural</option>
+								<option value="classic">Classic</option>
+								<option value="forest">Forest (Fan-made)</option>
+								<option value="midnight">Midnight (Fan-made)</option>
+								<option value="pastel">Snow (Fan-made)</option>
+								<option value="ocean">Coral Reef (Fan-made)</option>
+								<option value="badlands">Badlands (Fan-made)</option>
+								<option value="bleach">Bleach (Fan-made)</option>
+							</select>
+							<select id="optBorders" tabindex="-1">
+								<option value="normal">Soft Borders</option>
+								<option value="dark">Dark Borders</option>
+								<option value="neon">Neon Mode</option>
+								<option value="glass">Glass Mode</option>
+							</select>
+							<table>
+								<tr>
+									<td>
+										<div>
+											<label><input id="optScreenshotMode" tabindex="-1" class="checkbox"
+													type="checkbox" /> Screenshot Mode</label>
+										</div>
+									</td>
+									<td>
+										<div>
+											<label><input id="optNoPointy" tabindex="-1" class="checkbox"
+													type="checkbox" /> Classic Traps</label>
+										</div>
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<div>
+											<label><input id="optFancy" tabindex="-1" class="checkbox"
+													type="checkbox" /> Low Graphics</label>
+										</div>
+									</td>
+									<td>
+										<div>
+											<label><input id="optPredictive" tabindex="-1" class="checkbox"
+													type="checkbox" /> Disable Hyperactivity</label>
+										</div>
+									</td>
+								</tr>
+								<tr></tr>
+							</table>
+						</div>
+					</div>
+					<div style="position: relative; bottom: -10px;">
+						<button id="startButton" tabindex="2">Play</button>
+					</div>
+				</div>
+				<div class="startMenuHolder shrinkable">
+					<center><span class="titleSpan">Changelog</span></center>
+					<div id="patchNotes" class="shadowScroll"></div>
+				</div>
+				<div id="bottomHolder">
+					<h5 class="nopadding" style="margin:0; display:inline">Enjoy!</h5>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script src="client.js"></script>
+</body>
+
+</html>

@@ -18,7 +18,7 @@ const hshg = require('./lib/hshg');
 
 // Let's get a cheaper array removal thing
 Array.prototype.remove = index => {
-    if(index === this.length - 1){
+    if (index === this.length - 1) {
         return this.pop();
     } else {
         let r = this[index];
@@ -36,7 +36,7 @@ const room = {
     width: c.WIDTH,
     height: c.HEIGHT,
     setup: c.ROOM_SETUP,
-    xgrid: c.X_GRID, 
+    xgrid: c.X_GRID,
     ygrid: c.Y_GRID,
     gameMode: c.MODE,
     skillBoost: c.SKILL_BOOST,
@@ -47,106 +47,106 @@ const room = {
     maxFood: c.WIDTH * c.HEIGHT / 20000 * c.FOOD_AMOUNT,
     isInRoom: location => {
         return location.x >= 0 && location.x <= c.WIDTH && location.y >= 0 && location.y <= c.HEIGHT
-    },    
+    },
     topPlayerID: -1,
 };
-    room.findType = type => {
-        let output = [];
-        let j = 0;
-        room.setup.forEach(row => { 
-            let i = 0;
-            row.forEach(cell => {
-                if (cell === type) { 
-                    output.push({ x: (i + 0.5) * room.width / room.xgrid, y: (j + 0.5) * room.height / room.ygrid, });
-                }
-                i++;
-            });
-            j++;
+room.findType = type => {
+    let output = [];
+    let j = 0;
+    room.setup.forEach(row => {
+        let i = 0;
+        row.forEach(cell => {
+            if (cell === type) {
+                output.push({ x: (i + 0.5) * room.width / room.xgrid, y: (j + 0.5) * room.height / room.ygrid, });
+            }
+            i++;
         });
-        room[type] = output;
+        j++;
+    });
+    room[type] = output;
+};
+room.findType('nest');
+room.findType('norm');
+room.findType('bas1');
+room.findType('bas2');
+room.findType('bas3');
+room.findType('bas4');
+room.findType('roid');
+room.findType('rock');
+room.nestFoodAmount = 1.5 * Math.sqrt(room.nest.length) / room.xgrid / room.ygrid;
+room.random = () => {
+    return {
+        x: ran.irandom(room.width),
+        y: ran.irandom(room.height),
     };
-    room.findType('nest');
-    room.findType('norm');
-    room.findType('bas1');
-    room.findType('bas2');
-    room.findType('bas3');
-    room.findType('bas4');
-    room.findType('roid');
-    room.findType('rock');
-    room.nestFoodAmount = 1.5 * Math.sqrt(room.nest.length) / room.xgrid / room.ygrid;
-    room.random = () => {
-        return {
-            x: ran.irandom(room.width),
-            y: ran.irandom(room.height),
+};
+room.randomType = type => {
+    let selection = room[type][ran.irandom(room[type].length - 1)];
+    return {
+        x: ran.irandom(0.5 * room.width / room.xgrid) * ran.choose([-1, 1]) + selection.x,
+        y: ran.irandom(0.5 * room.height / room.ygrid) * ran.choose([-1, 1]) + selection.y,
+    };
+};
+room.gauss = clustering => {
+    let output;
+    do {
+        output = {
+            x: ran.gauss(room.width / 2, room.height / clustering),
+            y: ran.gauss(room.width / 2, room.height / clustering),
         };
-    };
-    room.randomType = type => {
-        let selection = room[type][ran.irandom(room[type].length-1)];
-        return {
-            x: ran.irandom(0.5*room.width/room.xgrid) * ran.choose([-1, 1]) + selection.x,
-            y: ran.irandom(0.5*room.height/room.ygrid) * ran.choose([-1, 1])  + selection.y,
+    } while (!room.isInRoom(output));
+};
+room.gaussInverse = clustering => {
+    let output;
+    do {
+        output = {
+            x: ran.gaussInverse(0, room.width, clustering),
+            y: ran.gaussInverse(0, room.height, clustering),
         };
-    };
-    room.gauss = clustering => {
-        let output;
-        do {
-            output = {
-                x: ran.gauss(room.width/2, room.height/clustering),
-                y: ran.gauss(room.width/2, room.height/clustering),
-            };
-        } while (!room.isInRoom(output));
-    };
-    room.gaussInverse = clustering => {
-        let output;
-        do {
-            output = {
-                x: ran.gaussInverse(0, room.width, clustering),
-                y: ran.gaussInverse(0, room.height, clustering),
-            };
-        } while (!room.isInRoom(output));
-        return output;
-    };
-    room.gaussRing = (radius, clustering) => {
-        let output;
-        do {
-            output = ran.gaussRing(room.width * radius, clustering);
-            output = {
-               x: output.x + room.width/2,
-               y: output.y + room.height/2, 
-            };
-        } while (!room.isInRoom(output));
-        return output;
-    };
-    room.isIn = (type, location) => {
-        if (room.isInRoom(location)) {
-            let a = Math.floor(location.y * room.ygrid / room.height);
-            let b = Math.floor(location.x * room.xgrid / room.width);
-            return type === room.setup[a][b];
-        } else {
-            return false;
-        }
-    };
-    room.isInNorm = location => {
-        if (room.isInRoom(location)) {
-            let a = Math.floor(location.y * room.ygrid / room.height);
-            let b = Math.floor(location.x * room.xgrid / room.width);
-            let v = room.setup[a][b];
-            return v !== 'nest';
-        } else {
-            return false;
-        }
-    };
-    room.gaussType = (type, clustering) => {
-        let selection = room[type][ran.irandom(room[type].length-1)];
-        let location = {};
-        do {
-            location = {
-                x: ran.gauss(selection.x, room.width/room.xgrid/clustering),
-                y: ran.gauss(selection.y, room.height/room.ygrid/clustering),
-            };
-        } while (!room.isIn(type, location));
-        return location;
-    };
+    } while (!room.isInRoom(output));
+    return output;
+};
+room.gaussRing = (radius, clustering) => {
+    let output;
+    do {
+        output = ran.gaussRing(room.width * radius, clustering);
+        output = {
+            x: output.x + room.width / 2,
+            y: output.y + room.height / 2,
+        };
+    } while (!room.isInRoom(output));
+    return output;
+};
+room.isIn = (type, location) => {
+    if (room.isInRoom(location)) {
+        let a = Math.floor(location.y * room.ygrid / room.height);
+        let b = Math.floor(location.x * room.xgrid / room.width);
+        return type === room.setup[a][b];
+    } else {
+        return false;
+    }
+};
+room.isInNorm = location => {
+    if (room.isInRoom(location)) {
+        let a = Math.floor(location.y * room.ygrid / room.height);
+        let b = Math.floor(location.x * room.xgrid / room.width);
+        let v = room.setup[a][b];
+        return v !== 'nest';
+    } else {
+        return false;
+    }
+};
+room.gaussType = (type, clustering) => {
+    let selection = room[type][ran.irandom(room[type].length - 1)];
+    let location = {};
+    do {
+        location = {
+            x: ran.gauss(selection.x, room.width / room.xgrid / clustering),
+            y: ran.gauss(selection.y, room.height / room.ygrid / clustering),
+        };
+    } while (!room.isIn(type, location));
+    return location;
+};
 util.log(room.width + ' x ' + room.height + ' room initalized.  Max food: ' + room.maxFood + ', max nest food: ' + (room.maxFood * room.nestFoodAmount) + '.');
 
 // Define a vector
@@ -175,7 +175,7 @@ function nullVector(v) {
 
 // Get class definitions and index them
 var Class = (() => {
-    let def = require('./lib/definitions'),
+    let def = require('./lib/classes'),
         i = 0;
     for (let k in def) {
         if (!def.hasOwnProperty(k)) continue;
@@ -191,7 +191,7 @@ function nearest(array, location, test = () => { return true; }) {
     if (!array.length) {
         return undefined;
     }
-    array.forEach(function(instance) {
+    array.forEach(function (instance) {
         d = Math.pow(instance.x - location.x, 2) + Math.pow(instance.y - location.y, 2);
         if (test(instance, d)) {
             list.enqueue(d, instance);
@@ -199,7 +199,7 @@ function nearest(array, location, test = () => { return true; }) {
     });
     return list.dequeue();
 }
-function timeOfImpact(p, v, s) { 
+function timeOfImpact(p, v, s) {
     // Requires relative position and velocity to aiming point
     let a = s * s - (v.x * v.x + v.y * v.y);
     let b = p.x * v.x + p.y * v.y;
@@ -212,7 +212,7 @@ function timeOfImpact(p, v, s) {
         t = Math.max(0, (b + Math.sqrt(d)) / a);
     }
 
-    return t*0.9;
+    return t * 0.9;
 }
 class IO {
     constructor(body) {
@@ -255,8 +255,8 @@ class io_moveInCircles extends IO {
         this.acceptsFromTop = false;
         this.timer = ran.irandom(10) + 3;
         this.goal = {
-            x: this.body.x + 10*Math.cos(-this.body.facing),
-            y: this.body.y + 10*Math.sin(-this.body.facing),
+            x: this.body.x + 10 * Math.cos(-this.body.facing),
+            y: this.body.y + 10 * Math.sin(-this.body.facing),
         };
     }
 
@@ -264,8 +264,8 @@ class io_moveInCircles extends IO {
         if (!(this.timer--)) {
             this.timer = 10;
             this.goal = {
-                x: this.body.x + 10*Math.cos(-this.body.facing),
-                y: this.body.y + 10*Math.sin(-this.body.facing),
+                x: this.body.x + 10 * Math.cos(-this.body.facing),
+                y: this.body.y + 10 * Math.sin(-this.body.facing),
             };
         }
         return { goal: this.goal };
@@ -279,7 +279,7 @@ class io_listenToPlayer extends IO {
     }
 
     // THE PLAYER MUST HAVE A VALID COMMAND AND TARGET OBJECT
-    
+
     think() {
         let targ = {
             x: this.player.target.x,
@@ -298,7 +298,7 @@ class io_listenToPlayer extends IO {
             }
         }
         this.body.autoOverride = this.player.command.override;
-        return {         
+        return {
             target: targ,
             goal: {
                 x: this.body.x + this.player.command.right - this.player.command.left,
@@ -317,7 +317,7 @@ class io_mapTargetToGoal extends IO {
 
     think(input) {
         if (input.main || input.alt) {
-            return {         
+            return {
                 goal: {
                     x: input.target.x + this.body.x,
                     y: input.target.y + this.body.y,
@@ -334,7 +334,7 @@ class io_boomerang extends IO {
         this.b = b;
         this.m = b.master;
         this.turnover = false;
-        let len = 10 * util.getDistance({x: 0, y:0}, b.master.control.target);
+        let len = 10 * util.getDistance({ x: 0, y: 0 }, b.master.control.target);
         this.myGoal = {
             x: 3 * b.master.control.target.x + b.master.x,
             y: 3 * b.master.control.target.y + b.master.y,
@@ -386,14 +386,14 @@ class io_canRepel extends IO {
     constructor(b) {
         super(b);
     }
-    
+
     think(input) {
         if (input.alt && input.target) {
-            return {                
+            return {
                 target: {
                     x: -input.target.x,
                     y: -input.target.y,
-                },  
+                },
                 main: true,
             };
         }
@@ -473,15 +473,20 @@ class io_nearestDifferentMaster extends IO {
         let out = entities.map(e => {
             // Only look at those within our view, and our parent's view, not dead, not our kind, not a bullet/trap/block etc
             if (e.health.amount > 0) {
-            if (!e.invuln) {
-            if (e.master.master.team !== this.body.master.master.team) {
-            if (e.master.master.team !== -101) {
-            if (e.type === 'tank' || e.type === 'crasher' || (!this.body.aiSettings.shapefriend && e.type === 'food')) {
-            if (Math.abs(e.x - m.x) < range && Math.abs(e.y - m.y) < range) {
-            if (!this.body.aiSettings.blind || (Math.abs(e.x - mm.x) < range && Math.abs(e.y - mm.y) < range)) return e;
-            } } } } } }
+                if (!e.invuln) {
+                    if (e.master.master.team !== this.body.master.master.team) {
+                        if (e.master.master.team !== -101) {
+                            if (e.type === 'tank' || e.type === 'crasher' || (!this.body.aiSettings.shapefriend && e.type === 'food')) {
+                                if (Math.abs(e.x - m.x) < range && Math.abs(e.y - m.y) < range) {
+                                    if (!this.body.aiSettings.blind || (Math.abs(e.x - mm.x) < range && Math.abs(e.y - mm.y) < range)) return e;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }).filter((e) => { return e; });
-        
+
         if (!out.length) return [];
 
         out = out.map((e) => {
@@ -492,17 +497,19 @@ class io_nearestDifferentMaster extends IO {
                     yaboi = true;
                 } else if (Math.abs(util.angleDifference(util.getDirection(this.body, e), this.body.firingArc[0])) < this.body.firingArc[1]) yaboi = true;
             }
-            if (yaboi) {                
+            if (yaboi) {
                 mostDangerous = Math.max(e.dangerValue, mostDangerous);
                 return e;
             }
-        }).filter((e) => { 
+        }).filter((e) => {
             // Only return the highest tier of danger
-            if (e != null) { if (this.body.aiSettings.farm || e.dangerValue === mostDangerous) { 
-                if (this.targetLock) { if (e.id === this.targetLock.id) keepTarget = true; }
-                return e; 
-            } } 
-        }); 
+            if (e != null) {
+                if (this.body.aiSettings.farm || e.dangerValue === mostDangerous) {
+                    if (this.targetLock) { if (e.id === this.targetLock.id) keepTarget = true; }
+                    return e;
+                }
+            }
+        });
         // Reset target if it's not in there
         if (!keepTarget) this.targetLock = undefined;
         return out;
@@ -512,12 +519,12 @@ class io_nearestDifferentMaster extends IO {
         // Override target lock upon other commands
         if (input.main || input.alt || this.body.master.autoOverride) {
             this.targetLock = undefined; return {};
-        } 
+        }
         // Otherwise, consider how fast we can either move to ram it or shoot at a potiential target.
         let tracking = this.body.topSpeed,
             range = this.body.fov / 2;
         // Use whether we have functional guns to decide
-        for (let i=0; i<this.body.guns.length; i++) {
+        for (let i = 0; i < this.body.guns.length; i++) {
             if (this.body.guns[i].canShoot && !this.body.aiSettings.skynet) {
                 let v = this.body.guns[i].getTracking();
                 tracking = v.speed;
@@ -526,10 +533,12 @@ class io_nearestDifferentMaster extends IO {
             }
         }
         // Check if my target's alive
-        if (this.targetLock) { if (this.targetLock.health.amount <= 0) {
-            this.targetLock = undefined;
-            this.tick = 100;
-        } }
+        if (this.targetLock) {
+            if (this.targetLock.health.amount <= 0) {
+                this.targetLock = undefined;
+                this.tick = 100;
+            }
+        }
         // Think damn hard
         if (this.tick++ > 15 * roomSpeed) {
             this.tick = 0;
@@ -576,7 +585,7 @@ class io_nearestDifferentMaster extends IO {
                 },
                 fire: true,
                 main: true,
-            }; 
+            };
         }
         return {};
     }
@@ -588,23 +597,24 @@ class io_avoid extends IO {
 
     think(input) {
         let masterId = this.body.master.id;
-        let range = this.body.size * this.body.size * 100 ;
-        this.avoid = nearest( 
-            entities, 
+        let range = this.body.size * this.body.size * 100;
+        this.avoid = nearest(
+            entities,
             { x: this.body.x, y: this.body.y },
-            function(test, sqrdst) { 
+            function (test, sqrdst) {
                 return (
-                    test.master.id !== masterId && 
+                    test.master.id !== masterId &&
                     (test.type === 'bullet' || test.type === 'drone' || test.type === 'swarm' || test.type === 'trap' || test.type === 'block') &&
                     sqrdst < range
-                ); }
+                );
+            }
         );
         // Aim at that target
-        if (this.avoid != null) { 
+        if (this.avoid != null) {
             // Consider how fast it's moving.
             let delt = new Vector(this.body.velocity.x - this.avoid.velocity.x, this.body.velocity.y - this.avoid.velocity.y);
-            let diff = new Vector(this.avoid.x - this.body.x, this.avoid.y - this.body.y);            
-            let comp = (delt.x * diff. x + delt.y * diff.y) / delt.length / diff.length;
+            let diff = new Vector(this.avoid.x - this.body.x, this.avoid.y - this.body.y);
+            let comp = (delt.x * diff.x + delt.y * diff.y) / delt.length / diff.length;
             let goal = {};
             if (comp > 0) {
                 if (input.goal) {
@@ -647,14 +657,14 @@ class io_minion extends IO {
                         x: this.body.x + target.x,
                         y: this.body.y + target.y,
                     };
-                // Spiral repel
+                    // Spiral repel
                 } else if (target.length < repel) {
                     let dir = -this.turnwise * target.direction + Math.PI / 5;
                     goal = {
                         x: this.body.x + Math.cos(dir),
                         y: this.body.y + Math.sin(dir),
                     };
-                // Free repel
+                    // Free repel
                 } else {
                     goal = {
                         x: this.body.x - target.x,
@@ -666,13 +676,13 @@ class io_minion extends IO {
                 let dir = this.turnwise * target.direction + 0.01;
                 goal = {
                     x: this.body.x + target.x - orbit * Math.cos(dir),
-                    y: this.body.y + target.y - orbit * Math.sin(dir), 
+                    y: this.body.y + target.y - orbit * Math.sin(dir),
                 };
                 if (Math.abs(target.length - orbit) < this.body.size * 2) {
                     power = 0.7;
                 }
             }
-            return { 
+            return {
                 goal: goal,
                 power: power,
             };
@@ -691,7 +701,7 @@ class io_hangOutNearMaster extends IO {
         if (this.body.source != this.body) {
             let bound1 = this.orbit * 0.8 + this.body.source.size + this.body.size;
             let bound2 = this.orbit * 1.5 + this.body.source.size + this.body.size;
-            let dist = util.getDistance(this.body, this.body.source) + Math.PI / 8; 
+            let dist = util.getDistance(this.body, this.body.source) + Math.PI / 8;
             let output = {
                 target: {
                     x: this.body.velocity.x,
@@ -699,19 +709,19 @@ class io_hangOutNearMaster extends IO {
                 },
                 goal: this.currentGoal,
                 power: undefined,
-            };        
+            };
             // Set a goal
             if (dist > bound2 || this.timer > 30) {
                 this.timer = 0;
 
-                let dir = util.getDirection(this.body, this.body.source) + Math.PI * ran.random(0.5); 
+                let dir = util.getDirection(this.body, this.body.source) + Math.PI * ran.random(0.5);
                 let len = ran.randomRange(bound1, bound2);
                 let x = this.body.source.x - len * Math.cos(dir);
                 let y = this.body.source.y - len * Math.sin(dir);
                 this.currentGoal = {
                     x: x,
                     y: y,
-                };        
+                };
             }
             if (dist < bound2) {
                 output.power = 0.15;
@@ -726,20 +736,20 @@ class io_spin extends IO {
         super(b);
         this.a = 0;
     }
-    
+
     think(input) {
         this.a += 0.05;
         let offset = 0;
         if (this.body.bond != null) {
             offset = this.body.bound.angle;
         }
-        return {                
+        return {
             target: {
                 x: Math.cos(this.a + offset),
                 y: Math.sin(this.a + offset),
-            },  
+            },
             main: true,
-        };        
+        };
     }
 }
 class io_fastspin extends IO {
@@ -747,20 +757,20 @@ class io_fastspin extends IO {
         super(b);
         this.a = 0;
     }
-    
+
     think(input) {
         this.a += 0.072;
         let offset = 0;
         if (this.body.bond != null) {
             offset = this.body.bound.angle;
         }
-        return {                
+        return {
             target: {
                 x: Math.cos(this.a + offset),
                 y: Math.sin(this.a + offset),
-            },  
+            },
             main: true,
-        };        
+        };
     }
 }
 class io_reversespin extends IO {
@@ -768,35 +778,35 @@ class io_reversespin extends IO {
         super(b);
         this.a = 0;
     }
-    
+
     think(input) {
         this.a -= 0.05;
         let offset = 0;
         if (this.body.bond != null) {
             offset = this.body.bound.angle;
         }
-        return {                
+        return {
             target: {
                 x: Math.cos(this.a + offset),
                 y: Math.sin(this.a + offset),
-            },  
+            },
             main: true,
-        };        
+        };
     }
 }
 class io_dontTurn extends IO {
     constructor(b) {
         super(b);
     }
-    
+
     think(input) {
         return {
             target: {
                 x: 1,
                 y: 0,
-            },  
+            },
             main: true,
-        };        
+        };
     }
 }
 class io_fleeAtLowHealth extends IO {
@@ -804,7 +814,7 @@ class io_fleeAtLowHealth extends IO {
         super(b);
         this.fear = util.clamp(ran.gauss(0.7, 0.15), 0.1, 0.9);
     }
-    
+
     think(input) {
         if (input.fire && input.target != null && this.body.health.amount < this.body.health.max * this.fear) {
             return {
@@ -834,7 +844,7 @@ const skcnv = {
     mob: 9,
 };
 const levelers = [
-    1,  2,  3,  4,  5,  6,  7,  8,  9,  10,
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
     11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
     21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
     31, 32, 33, 34, 35, 36, 38, 40, 42, 44,
@@ -844,7 +854,7 @@ class Skill {
         this.raw = inital;
         this.caps = [];
         this.setCaps([
-            c.MAX_SKILL, c.MAX_SKILL, c.MAX_SKILL, c.MAX_SKILL, c.MAX_SKILL, 
+            c.MAX_SKILL, c.MAX_SKILL, c.MAX_SKILL, c.MAX_SKILL, c.MAX_SKILL,
             c.MAX_SKILL, c.MAX_SKILL, c.MAX_SKILL, c.MAX_SKILL, c.MAX_SKILL
         ]);
         this.name = [
@@ -874,7 +884,7 @@ class Skill {
         this.ghost = 0;
         this.acl = 0;
 
-        this.reset();        
+        this.reset();
     }
 
     reset() {
@@ -889,27 +899,29 @@ class Skill {
 
     update() {
         let curve = (() => {
-            function make(x) { return Math.log(4*x + 1) / Math.log(5); }
+            function make(x) { return Math.log(4 * x + 1) / Math.log(5); }
             let a = [];
-            for (let i=0; i<c.MAX_SKILL*2; i++) { a.push(make(i/c.MAX_SKILL)); }
+            for (let i = 0; i < c.MAX_SKILL * 2; i++) { a.push(make(i / c.MAX_SKILL)); }
             // The actual lookup function
             return x => { return a[x * c.MAX_SKILL]; };
         })();
-        function apply(f, x) { return (x<0) ? 1 / (1 - x * f) : f * x + 1; }
-        for (let i=0; i<10; i++) {
+        function apply(f, x) { return (x < 0) ? 1 / (1 - x * f) : f * x + 1; }
+        for (let i = 0; i < 10; i++) {
             if (this.raw[i] > this.caps[i]) {
                 this.points += this.raw[i] - this.caps[i];
                 this.raw[i] = this.caps[i];
             }
         }
         let attrib = [];
-        for (let i=0; i<5; i++) { for (let j=0; j<2; j+=1) {
-            attrib[i + 5*j] = curve(
-                (
-                    this.raw[i + 5*j] + 
-                    this.bleed(i, j)
-                ) / c.MAX_SKILL);
-        } }
+        for (let i = 0; i < 5; i++) {
+            for (let j = 0; j < 2; j += 1) {
+                attrib[i + 5 * j] = curve(
+                    (
+                        this.raw[i + 5 * j] +
+                        this.bleed(i, j)
+                    ) / c.MAX_SKILL);
+            }
+        }
         this.rld = Math.pow(0.5, attrib[skcnv.rld]);
         this.pen = apply(2.5, attrib[skcnv.pen]);
         this.str = apply(2, attrib[skcnv.str]);
@@ -917,14 +929,14 @@ class Skill {
         this.spd = 0.5 + apply(1.5, attrib[skcnv.spd]);
 
         this.acl = apply(0.5, attrib[skcnv.rld]);
-        
+
         this.rst = 0.5 * attrib[skcnv.str] + 2.5 * attrib[skcnv.pen];
         this.ghost = attrib[skcnv.pen];
-        
+
         this.shi = c.GLASS_HEALTH_FACTOR * apply(3 / c.GLASS_HEALTH_FACTOR - 1, attrib[skcnv.shi]);
         this.atk = apply(1, attrib[skcnv.atk]);
         this.hlt = c.GLASS_HEALTH_FACTOR * apply(2 / c.GLASS_HEALTH_FACTOR - 1, attrib[skcnv.hlt]);
-        this.mob = apply(0.8, attrib[skcnv.mob]); 
+        this.mob = apply(0.8, attrib[skcnv.mob]);
         this.rgn = apply(25, attrib[skcnv.rgn]);
 
         this.brst = 0.3 * (0.5 * attrib[skcnv.atk] + 0.5 * attrib[skcnv.hlt] + attrib[skcnv.rgn]);
@@ -984,23 +996,23 @@ class Skill {
 
     get levelPoints() {
         if (levelers.findIndex(e => { return e === this.level; }) != -1) { return 1; } return 0;
-        
+
     }
 
     cap(skill, real = false) {
         if (!real && this.level < c.SKILL_SOFT_CAP) {
             return Math.round(this.caps[skcnv[skill]] * c.SOFT_MAX_SKILL);
-        } 
+        }
         return this.caps[skcnv[skill]];
     }
 
     bleed(i, j) {
-        let a = ((i + 2) % 5) + 5*j,
-            b = ((i + ((j===1) ? 1 : 4)) % 5) + 5*j;        
-        let value = 0;   
-        let denom = Math.max(c.MAX_SKILL, this.caps[i + 5*j]);
+        let a = ((i + 2) % 5) + 5 * j,
+            b = ((i + ((j === 1) ? 1 : 4)) % 5) + 5 * j;
+        let value = 0;
+        let denom = Math.max(c.MAX_SKILL, this.caps[i + 5 * j]);
         value += (1 - Math.pow(this.raw[a] / denom - 1, 2)) * this.raw[a] * c.SKILL_LEAK;
-        value -= Math.pow(this.raw[b] / denom, 2) * this.raw[b] * c.SKILL_LEAK ;
+        value -= Math.pow(this.raw[b] / denom, 2) * this.raw[b] * c.SKILL_LEAK;
 
         return value;
     }
@@ -1040,8 +1052,8 @@ class Skill {
 }
 
 const lazyRealSizes = (() => {
-    let o = [1, 1, 1]; 
-    for (var i=3; i<16; i++) {
+    let o = [1, 1, 1];
+    for (var i = 3; i < 16; i++) {
         // We say that the real size of a 0-gon, 1-gon, 2-gon is one, then push the real sizes of triangles, squares, etc...
         o.push(
             Math.sqrt((2 * Math.PI / i) * (1 / Math.sin(2 * Math.PI / i)))
@@ -1068,7 +1080,7 @@ class Gun {
             main: false,
             alt: false,
             fire: false,
-        };        
+        };
         this.canShoot = false;
         if (info.PROPERTIES != null && info.PROPERTIES.TYPE != null) {
             this.canShoot = true;
@@ -1082,9 +1094,9 @@ class Gun {
             }
             // Pre-load bullet definitions so we don't have to recalculate them every shot
             let natural = {};
-            this.bulletTypes.forEach(function setNatural(type) {    
+            this.bulletTypes.forEach(function setNatural(type) {
                 if (type.PARENT != null) { // Make sure we load from the parents first
-                    for (let i=0; i<type.PARENT.length; i++) {
+                    for (let i = 0; i < type.PARENT.length; i++) {
                         setNatural(type.PARENT[i]);
                     }
                 }
@@ -1095,10 +1107,10 @@ class Gun {
                 }
             });
             this.natural = natural; // Save it
-            if (info.PROPERTIES.GUN_CONTROLLERS != null) { 
+            if (info.PROPERTIES.GUN_CONTROLLERS != null) {
                 let toAdd = [];
                 let self = this;
-                info.PROPERTIES.GUN_CONTROLLERS.forEach(function(ioName) {
+                info.PROPERTIES.GUN_CONTROLLERS.forEach(function (ioName) {
                     toAdd.push(eval('new ' + ioName + '(self)'));
                 });
                 this.controllers = toAdd.concat(this.controllers);
@@ -1123,16 +1135,16 @@ class Gun {
                 false : info.PROPERTIES.SYNCS_SKILLS;
             this.negRecoil = (info.PROPERTIES.NEGATIVE_RECOIL == null) ?
                 false : info.PROPERTIES.NEGATIVE_RECOIL;
-        }                    
+        }
         let position = info.POSITION;
         this.length = position[0] / 10;
         this.width = position[1] / 10;
         this.aspect = position[2];
         let _off = new Vector(position[3], position[4]);
-        this.angle  = position[5] * Math.PI / 180;
+        this.angle = position[5] * Math.PI / 180;
         this.direction = _off.direction;
         this.offset = _off.length / 10;
-        this.delay  = position[6];
+        this.delay = position[6];
 
         this.position = 0;
         this.motion = 0;
@@ -1141,7 +1153,7 @@ class Gun {
             this.trueRecoil = this.settings.recoil;
         }
     }
-    
+
     recoil() {
         if (this.motion || this.position) {
             // Simulate recoil
@@ -1154,18 +1166,18 @@ class Gun {
             if (this.motion > 0) {
                 this.motion *= 0.75;
             }
-        }   
+        }
         if (this.canShoot && !this.body.settings.hasNoRecoil) {
             // Apply recoil to motion
             if (this.motion > 0) {
                 let recoilForce = -this.position * this.trueRecoil * 0.045 / roomSpeed;
                 this.body.accel.x += recoilForce * Math.cos(this.body.facing + this.angle);
                 this.body.accel.y += recoilForce * Math.sin(this.body.facing + this.angle);
-            }      
+            }
         }
     }
 
-    getSkillRaw() { 
+    getSkillRaw() {
         if (this.bulletStats === 'master') {
             return [
                 this.body.skill.raw[0],
@@ -1173,9 +1185,9 @@ class Gun {
                 this.body.skill.raw[2],
                 this.body.skill.raw[3],
                 this.body.skill.raw[4],
-                0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0,
             ];
-        } 
+        }
         return this.bulletStats.raw;
     }
 
@@ -1192,10 +1204,10 @@ class Gun {
             let sk = (this.bulletStats === 'master') ? this.body.skill : this.bulletStats;
             // Decides what to do based on child-counting settings
             let shootPermission = (this.countsOwnKids) ?
-                    this.countsOwnKids > this.children.length * ((this.calculator == 'necro') ? sk.rld : 1)
+                this.countsOwnKids > this.children.length * ((this.calculator == 'necro') ? sk.rld : 1)
                 : (this.body.maxChildren) ?
                     this.body.maxChildren > this.body.children.length * ((this.calculator == 'necro') ? sk.rld : 1)
-                : true;                
+                    : true;
             // Override in invuln
             if (this.body.master.invuln) {
                 shootPermission = false;
@@ -1204,43 +1216,43 @@ class Gun {
             if (shootPermission || !this.waitToCycle) {
                 if (this.cycle < 1) {
                     this.cycle += 1 / this.settings.reload / roomSpeed / ((this.calculator == 'necro' || this.calculator == 'fixed reload') ? 1 : sk.rld);
-                } 
-            } 
+                }
+            }
             // Firing routines
             if (shootPermission && (this.autofire || ((this.altFire) ? this.body.control.alt : this.body.control.fire))) {
                 if (this.cycle >= 1) {
                     // Find the end of the gun barrel
-                    let gx = 
+                    let gx =
                         this.offset * Math.cos(this.direction + this.angle + this.body.facing) +
                         (1.5 * this.length - this.width * this.settings.size / 2) * Math.cos(this.angle + this.body.facing);
-                    let gy = 
+                    let gy =
                         this.offset * Math.sin(this.direction + this.angle + this.body.facing) +
-                        (1.5 * this.length - this.width * this.settings.size / 2) * Math.sin(this.angle + this.body.facing); 
+                        (1.5 * this.length - this.width * this.settings.size / 2) * Math.sin(this.angle + this.body.facing);
                     // Shoot, multiple times in a tick if needed
                     while (shootPermission && this.cycle >= 1) {
-                        this.fire(gx, gy, sk);   
+                        this.fire(gx, gy, sk);
                         // Figure out if we may still shoot
                         shootPermission = (this.countsOwnKids) ?
                             this.countsOwnKids > this.children.length
-                        : (this.body.maxChildren) ?
-                            this.body.maxChildren > this.body.children.length
-                        : true; 
+                            : (this.body.maxChildren) ?
+                                this.body.maxChildren > this.body.children.length
+                                : true;
                         // Cycle down
                         this.cycle -= 1;
                     }
                 }  // If we're not shooting, only cycle up to where we'll have the proper firing delay
             } else if (this.cycle > !this.waitToCycle - this.delay) {
                 this.cycle = !this.waitToCycle - this.delay;
-            } 
+            }
         }
     }
 
     syncChildren() {
         if (this.syncsSkills) {
             let self = this;
-            this.children.forEach(function(o) {
+            this.children.forEach(function (o) {
                 o.define({
-                    BODY: self.interpret(), 
+                    BODY: self.interpret(),
                     SKILL: self.getSkillRaw(),
                 });
                 o.refreshBodyAttributes();
@@ -1252,7 +1264,7 @@ class Gun {
         // Recoil
         this.lastShot.time = util.time();
         this.lastShot.power = 3 * Math.log(Math.sqrt(sk.spd) + this.trueRecoil + 1) + 1;
-        this.motion += this.lastShot.power;                 
+        this.motion += this.lastShot.power;
         // Find inaccuracy
         let ss, sd;
         do {
@@ -1266,16 +1278,16 @@ class Gun {
         let s = new Vector(
             ((this.negRecoil) ? -1 : 1) * this.settings.speed * c.runSpeed * sk.spd * (1 + ss) * Math.cos(this.angle + this.body.facing + sd),
             ((this.negRecoil) ? -1 : 1) * this.settings.speed * c.runSpeed * sk.spd * (1 + ss) * Math.sin(this.angle + this.body.facing + sd)
-        );     
+        );
         // Boost it if we shouldw
-        if (this.body.velocity.length) { 
-            let extraBoost = 
+        if (this.body.velocity.length) {
+            let extraBoost =
                 Math.max(0, s.x * this.body.velocity.x + s.y * this.body.velocity.y) / this.body.velocity.length / s.length;
             if (extraBoost) {
                 let len = s.length;
                 s.x += this.body.velocity.length * extraBoost * s.x / len;
-                s.y += this.body.velocity.length * extraBoost * s.y / len;   
-            }                     
+                s.y += this.body.velocity.length * extraBoost * s.y / len;
+            }
         }
         // Create the bullet
         var o = new Entity({
@@ -1296,12 +1308,12 @@ class Gun {
         // Define it by its natural properties
         this.bulletTypes.forEach(type => o.define(type));
         // Pass the gun attributes
-        o.define({ 
-            BODY: this.interpret(), 
+        o.define({
+            BODY: this.interpret(),
             SKILL: this.getSkillRaw(),
-            SIZE: this.body.size * this.width * this.settings.size / 2 ,
+            SIZE: this.body.size * this.width * this.settings.size / 2,
             LABEL: this.master.label + ((this.label) ? ' ' + this.label : '') + ' ' + o.label,
-        });            
+        });
         o.color = this.body.master.color;
         // Keep track of it and give it the function it needs to deutil.log itself upon death
         if (this.countsOwnKids) {
@@ -1310,20 +1322,20 @@ class Gun {
         } else if (this.body.maxChildren) {
             o.parent = this.body;
             this.body.children.push(o);
-            this.children.push(o);  
-        }        
+            this.children.push(o);
+        }
         o.source = this.body;
         o.facing = o.velocity.direction;
         // Necromancers.
         let oo = o;
         o.necro = host => {
             let shootPermission = (this.countsOwnKids) ?
-                this.countsOwnKids > this.children.length * 
+                this.countsOwnKids > this.children.length *
                 ((this.bulletStats === 'master') ? this.body.skill.rld : this.bulletStats.rld)
-            : (this.body.maxChildren) ?
-                this.body.maxChildren > this.body.children.length * 
-                ((this.bulletStats === 'master') ? this.body.skill.rld : this.bulletStats.rld)
-            : true;   
+                : (this.body.maxChildren) ?
+                    this.body.maxChildren > this.body.children.length *
+                    ((this.bulletStats === 'master') ? this.body.skill.rld : this.bulletStats.rld)
+                    : true;
             if (shootPermission) {
                 let save = {
                     facing: host.facing,
@@ -1348,17 +1360,17 @@ class Gun {
 
     getTracking() {
         return {
-            speed: c.runSpeed * ((this.bulletStats == 'master') ? this.body.skill.spd : this.bulletStats.spd) * 
-                this.settings.maxSpeed * 
+            speed: c.runSpeed * ((this.bulletStats == 'master') ? this.body.skill.spd : this.bulletStats.spd) *
+                this.settings.maxSpeed *
                 this.natural.SPEED,
-            range:  Math.sqrt((this.bulletStats == 'master') ? this.body.skill.spd : this.bulletStats.spd) * 
-                this.settings.range * 
+            range: Math.sqrt((this.bulletStats == 'master') ? this.body.skill.spd : this.bulletStats.spd) *
+                this.settings.range *
                 this.natural.RANGE,
         };
     }
 
     interpret() {
-        let sizeFactor = this.master.size/this.master.SIZE;
+        let sizeFactor = this.master.size / this.master.SIZE;
         let shoot = this.settings;
         let sk = (this.bulletStats == 'master') ? this.body.skill : this.bulletStats;
         // Defaults
@@ -1367,7 +1379,7 @@ class Gun {
             HEALTH: shoot.health * sk.str,
             RESIST: shoot.resist + sk.rst,
             DAMAGE: shoot.damage * sk.dam,
-            PENETRATION: Math.max(1, shoot.pen * sk.pen),            
+            PENETRATION: Math.max(1, shoot.pen * sk.pen),
             RANGE: shoot.range / Math.sqrt(sk.spd),
             DENSITY: shoot.density * sk.pen * sk.pen / sizeFactor,
             PUSHABILITY: 1 / sk.pen,
@@ -1375,32 +1387,32 @@ class Gun {
         };
         // Special cases
         switch (this.calculator) {
-        case 'thruster': 
-            this.trueRecoil = this.settings.recoil * Math.sqrt(sk.rld * sk.spd);
-            break;
-        case 'sustained':
-            out.RANGE = shoot.range;
-            break;
-        case 'swarm':
-            out.PENETRATION = Math.max(1, shoot.pen * (0.5 * (sk.pen - 1) + 1));
-            out.HEALTH /= shoot.pen * sk.pen;
-            break;
-        case 'trap':
-        case 'block':
-            out.PUSHABILITY = 1 / Math.pow(sk.pen, 0.5);    
-            out.RANGE = shoot.range;
-            break;
-        case 'necro':
-        case 'drone':
-            out.PUSHABILITY = 1;
-            out.PENETRATION = Math.max(1, shoot.pen * (0.5 * (sk.pen - 1) + 1));
-            out.HEALTH = (shoot.health * sk.str + sizeFactor) / Math.pow(sk.pen, 0.8);
-            out.DAMAGE = shoot.damage * sk.dam * Math.sqrt(sizeFactor) * shoot.pen * sk.pen;
-            out.RANGE = shoot.range * Math.sqrt(sizeFactor);
-            break;
+            case 'thruster':
+                this.trueRecoil = this.settings.recoil * Math.sqrt(sk.rld * sk.spd);
+                break;
+            case 'sustained':
+                out.RANGE = shoot.range;
+                break;
+            case 'swarm':
+                out.PENETRATION = Math.max(1, shoot.pen * (0.5 * (sk.pen - 1) + 1));
+                out.HEALTH /= shoot.pen * sk.pen;
+                break;
+            case 'trap':
+            case 'block':
+                out.PUSHABILITY = 1 / Math.pow(sk.pen, 0.5);
+                out.RANGE = shoot.range;
+                break;
+            case 'necro':
+            case 'drone':
+                out.PUSHABILITY = 1;
+                out.PENETRATION = Math.max(1, shoot.pen * (0.5 * (sk.pen - 1) + 1));
+                out.HEALTH = (shoot.health * sk.str + sizeFactor) / Math.pow(sk.pen, 0.8);
+                out.DAMAGE = shoot.damage * sk.dam * Math.sqrt(sizeFactor) * shoot.pen * sk.pen;
+                out.RANGE = shoot.range * Math.sqrt(sizeFactor);
+                break;
         }
         // Go through and make sure we respect its natural properties
-        for (let property in out) { 
+        for (let property in out) {
             if (this.natural[property] == null || !out.hasOwnProperty(property)) continue;
             out[property] *= this.natural[property];
         }
@@ -1451,9 +1463,9 @@ var bringToLife = (() => {
         }
         // Invisibility
         if (my.invisible[1]) {
-          my.alpha = Math.max(0, my.alpha - my.invisible[1])
-          if (!my.velocity.isShorterThan(0.1) || my.damageReceived)
-            my.alpha = Math.min(1, my.alpha + my.invisible[0])
+            my.alpha = Math.max(0, my.alpha - my.invisible[1])
+            if (!my.velocity.isShorterThan(0.1) || my.damageReceived)
+                my.alpha = Math.min(1, my.alpha + my.invisible[0])
         }
         // So we start with my master's thoughts and then we filter them down through our control stack
         my.controllers.forEach(AI => {
@@ -1465,7 +1477,7 @@ var bringToLife = (() => {
             passValue('main');
             passValue('alt');
             passValue('power');
-        });        
+        });
         my.control.target = (b.target == null) ? my.control.target : b.target;
         my.control.goal = b.goal;
         my.control.fire = b.fire;
@@ -1473,13 +1485,13 @@ var bringToLife = (() => {
         my.control.alt = b.alt;
         my.control.power = (b.power == null) ? 1 : b.power;
         // React
-        my.move(); 
+        my.move();
         my.face();
         // Handle guns and turrets if we've got them
         my.guns.forEach(gun => gun.live());
         my.turrets.forEach(turret => turret.life());
         if (my.skill.maintain()) my.refreshBodyAttributes();
-    }; 
+    };
 })();
 
 class HealthType {
@@ -1503,48 +1515,48 @@ class HealthType {
 
     getDamage(amount, capped = true) {
         switch (this.type) {
-        case 'dynamic': 
-            return (capped) ? (
-                Math.min(amount * this.permeability, this.amount)
-            ) : (
-                amount * this.permeability
-            );
-        case 'static':
-            return (capped) ? (
-                Math.min(amount, this.amount)
-            ) : (
-                amount
-            );
-        }            
+            case 'dynamic':
+                return (capped) ? (
+                    Math.min(amount * this.permeability, this.amount)
+                ) : (
+                    amount * this.permeability
+                );
+            case 'static':
+                return (capped) ? (
+                    Math.min(amount, this.amount)
+                ) : (
+                    amount
+                );
+        }
     }
 
     regenerate(boost = false) {
         boost /= 2;
         let cons = 5;
         switch (this.type) {
-        case 'static':
-            if (this.amount >= this.max || !this.amount) break;
-            this.amount += cons * (this.max / 10 / 60 / 2.5 + boost);
-            break;
-        case 'dynamic':
-            let r = util.clamp(this.amount / this.max, 0, 1);
-            if (!r) {
-                this.amount = 0.0001;
-            }
-            if (r === 1) {
-                this.amount = this.max;
-            } else {
-                this.amount += cons * (this.regen * Math.exp(-50 * Math.pow(Math.sqrt(0.5 * r) - 0.4, 2)) / 3 + r * this.max / 10 / 15 + boost);
-            }
-        break; 
+            case 'static':
+                if (this.amount >= this.max || !this.amount) break;
+                this.amount += cons * (this.max / 10 / 60 / 2.5 + boost);
+                break;
+            case 'dynamic':
+                let r = util.clamp(this.amount / this.max, 0, 1);
+                if (!r) {
+                    this.amount = 0.0001;
+                }
+                if (r === 1) {
+                    this.amount = this.max;
+                } else {
+                    this.amount += cons * (this.regen * Math.exp(-50 * Math.pow(Math.sqrt(0.5 * r) - 0.4, 2)) / 3 + r * this.max / 10 / 15 + boost);
+                }
+                break;
         }
         this.amount = util.clamp(this.amount, 0, this.max);
     }
 
     get permeability() {
-        switch(this.type) {
-        case 'static': return 1;
-        case 'dynamic': return (this.max) ? util.clamp(this.amount / this.max, 0, 1) : 0;
+        switch (this.type) {
+            case 'static': return 1;
+            case 'dynamic': return (this.max) ? util.clamp(this.amount / this.max, 0, 1) : 0;
         }
     }
 
@@ -1580,7 +1592,7 @@ class Entity {
                 update: () => {
                     if (this.isDead()) return 0;
                     // Check if I'm in anybody's view
-                    if (!active) { 
+                    if (!active) {
                         this.removeFromGrid();
                         // Remove bullets and swarm
                         if (this.settings.diesAtRange) this.kill();
@@ -1635,7 +1647,7 @@ class Entity {
         this.team = this.id;
         this.team = master.team;
         // This is for collisions
-        this.updateAABB = () => {};
+        this.updateAABB = () => { };
         this.getAABB = (() => {
             let data = {}, savedSize = 0;
             let getLongestEdge = (x1, y1, x2, y2) => {
@@ -1644,7 +1656,7 @@ class Entity {
                     Math.abs(y2 - y1)
                 );
             };
-            this.updateAABB = active => { 
+            this.updateAABB = active => {
                 if (this.bond != null) return 0;
                 if (!active) { data.active = false; return 0; }
                 // Get bounds
@@ -1656,7 +1668,7 @@ class Entity {
                 let size = getLongestEdge(x1, y1, x2, y1);
                 let sizeDiff = savedSize / size;
                 // Update data
-                data = { 
+                data = {
                     min: [x1, y1],
                     max: [x2, y2],
                     active: true,
@@ -1670,173 +1682,173 @@ class Entity {
             };
             return () => { return data; };
         })();
-        this.updateAABB(true);   
+        this.updateAABB(true);
         entities.push(this); // everything else
         views.forEach(v => v.add(this));
     }
-    
+
     life() { bringToLife(this); }
 
     addController(newIO) {
         if (Array.isArray(newIO)) {
             this.controllers = newIO.concat(this.controllers);
         } else {
-            this.controllers.unshift(newIO); 
+            this.controllers.unshift(newIO);
         }
-    } 
+    }
 
     define(set) {
         if (set.PARENT != null) {
-            for (let i=0; i<set.PARENT.length; i++) {
+            for (let i = 0; i < set.PARENT.length; i++) {
                 this.define(set.PARENT[i]);
             }
         }
         if (set.index != null) {
             this.index = set.index;
         }
-        if (set.NAME != null) { 
-            this.name = set.NAME; 
+        if (set.NAME != null) {
+            this.name = set.NAME;
         }
-        if (set.LABEL != null) { 
-            this.label = set.LABEL; 
+        if (set.LABEL != null) {
+            this.label = set.LABEL;
         }
-        if (set.TYPE != null) { 
-            this.type = set.TYPE; 
+        if (set.TYPE != null) {
+            this.type = set.TYPE;
         }
         if (set.SHAPE != null) {
             this.shape = typeof set.SHAPE === 'number' ? set.SHAPE : 0
             this.shapeData = set.SHAPE;
         }
-        if (set.COLOR != null) { 
-            this.color = set.COLOR; 
-        }   
-        if (set.CONTROLLERS != null) { 
+        if (set.COLOR != null) {
+            this.color = set.COLOR;
+        }
+        if (set.CONTROLLERS != null) {
             let toAdd = [];
             set.CONTROLLERS.forEach((ioName) => {
                 toAdd.push(eval('new io_' + ioName + '(this)'));
             });
             this.addController(toAdd);
         }
-        if (set.MOTION_TYPE != null) { 
-            this.motionType = set.MOTION_TYPE; 
+        if (set.MOTION_TYPE != null) {
+            this.motionType = set.MOTION_TYPE;
         }
-        if (set.FACING_TYPE != null) { 
-            this.facingType = set.FACING_TYPE; 
+        if (set.FACING_TYPE != null) {
+            this.facingType = set.FACING_TYPE;
         }
-        if (set.DRAW_HEALTH != null) { 
-            this.settings.drawHealth = set.DRAW_HEALTH; 
+        if (set.DRAW_HEALTH != null) {
+            this.settings.drawHealth = set.DRAW_HEALTH;
         }
-        if (set.DRAW_SELF != null) { 
-            this.settings.drawShape = set.DRAW_SELF; 
+        if (set.DRAW_SELF != null) {
+            this.settings.drawShape = set.DRAW_SELF;
         }
-        if (set.DAMAGE_EFFECTS != null) { 
-            this.settings.damageEffects = set.DAMAGE_EFFECTS; 
+        if (set.DAMAGE_EFFECTS != null) {
+            this.settings.damageEffects = set.DAMAGE_EFFECTS;
         }
-        if (set.RATIO_EFFECTS != null) { 
-            this.settings.ratioEffects = set.RATIO_EFFECTS; 
+        if (set.RATIO_EFFECTS != null) {
+            this.settings.ratioEffects = set.RATIO_EFFECTS;
         }
-        if (set.MOTION_EFFECTS != null) { 
-            this.settings.motionEffects = set.MOTION_EFFECTS; 
+        if (set.MOTION_EFFECTS != null) {
+            this.settings.motionEffects = set.MOTION_EFFECTS;
         }
-        if (set.ACCEPTS_SCORE != null) { 
-            this.settings.acceptsScore = set.ACCEPTS_SCORE; 
+        if (set.ACCEPTS_SCORE != null) {
+            this.settings.acceptsScore = set.ACCEPTS_SCORE;
         }
-        if (set.GIVE_KILL_MESSAGE != null) { 
-            this.settings.givesKillMessage = set.GIVE_KILL_MESSAGE; 
+        if (set.GIVE_KILL_MESSAGE != null) {
+            this.settings.givesKillMessage = set.GIVE_KILL_MESSAGE;
         }
-        if (set.CAN_GO_OUTSIDE_ROOM != null) { 
-            this.settings.canGoOutsideRoom = set.CAN_GO_OUTSIDE_ROOM; 
+        if (set.CAN_GO_OUTSIDE_ROOM != null) {
+            this.settings.canGoOutsideRoom = set.CAN_GO_OUTSIDE_ROOM;
         }
-        if (set.HITS_OWN_TYPE != null) { 
-            this.settings.hitsOwnType = set.HITS_OWN_TYPE; 
+        if (set.HITS_OWN_TYPE != null) {
+            this.settings.hitsOwnType = set.HITS_OWN_TYPE;
         }
-        if (set.DIE_AT_LOW_SPEED != null) { 
-            this.settings.diesAtLowSpeed = set.DIE_AT_LOW_SPEED; 
+        if (set.DIE_AT_LOW_SPEED != null) {
+            this.settings.diesAtLowSpeed = set.DIE_AT_LOW_SPEED;
         }
-        if (set.DIE_AT_RANGE != null) { 
-            this.settings.diesAtRange = set.DIE_AT_RANGE; 
+        if (set.DIE_AT_RANGE != null) {
+            this.settings.diesAtRange = set.DIE_AT_RANGE;
         }
-        if (set.INDEPENDENT != null) { 
-            this.settings.independent = set.INDEPENDENT; 
+        if (set.INDEPENDENT != null) {
+            this.settings.independent = set.INDEPENDENT;
         }
-        if (set.PERSISTS_AFTER_DEATH != null) { 
-            this.settings.persistsAfterDeath = set.PERSISTS_AFTER_DEATH; 
+        if (set.PERSISTS_AFTER_DEATH != null) {
+            this.settings.persistsAfterDeath = set.PERSISTS_AFTER_DEATH;
         }
-        if (set.CLEAR_ON_MASTER_UPGRADE != null) { 
-            this.settings.clearOnMasterUpgrade = set.CLEAR_ON_MASTER_UPGRADE; 
+        if (set.CLEAR_ON_MASTER_UPGRADE != null) {
+            this.settings.clearOnMasterUpgrade = set.CLEAR_ON_MASTER_UPGRADE;
         }
-        if (set.HEALTH_WITH_LEVEL != null) { 
-            this.settings.healthWithLevel = set.HEALTH_WITH_LEVEL; 
+        if (set.HEALTH_WITH_LEVEL != null) {
+            this.settings.healthWithLevel = set.HEALTH_WITH_LEVEL;
         }
-        if (set.ACCEPTS_SCORE != null) { 
-            this.settings.acceptsScore = set.ACCEPTS_SCORE; 
+        if (set.ACCEPTS_SCORE != null) {
+            this.settings.acceptsScore = set.ACCEPTS_SCORE;
         }
-        if (set.OBSTACLE != null) { 
-            this.settings.obstacle = set.OBSTACLE; 
+        if (set.OBSTACLE != null) {
+            this.settings.obstacle = set.OBSTACLE;
         }
-        if (set.NECRO != null) { 
-            this.settings.isNecromancer = set.NECRO; 
+        if (set.NECRO != null) {
+            this.settings.isNecromancer = set.NECRO;
         }
-        if (set.AUTO_UPGRADE != null) { 
-            this.settings.upgrading = set.AUTO_UPGRADE; 
+        if (set.AUTO_UPGRADE != null) {
+            this.settings.upgrading = set.AUTO_UPGRADE;
         }
-        if (set.HAS_NO_RECOIL != null) { 
-            this.settings.hasNoRecoil = set.HAS_NO_RECOIL; 
+        if (set.HAS_NO_RECOIL != null) {
+            this.settings.hasNoRecoil = set.HAS_NO_RECOIL;
         }
-        if (set.CRAVES_ATTENTION != null) { 
-            this.settings.attentionCraver = set.CRAVES_ATTENTION; 
+        if (set.CRAVES_ATTENTION != null) {
+            this.settings.attentionCraver = set.CRAVES_ATTENTION;
         }
-        if (set.BROADCAST_MESSAGE != null) { 
-            this.settings.broadcastMessage = (set.BROADCAST_MESSAGE === '') ? undefined : set.BROADCAST_MESSAGE; 
+        if (set.BROADCAST_MESSAGE != null) {
+            this.settings.broadcastMessage = (set.BROADCAST_MESSAGE === '') ? undefined : set.BROADCAST_MESSAGE;
         }
-        if (set.DAMAGE_CLASS != null) { 
-            this.settings.damageClass = set.DAMAGE_CLASS; 
+        if (set.DAMAGE_CLASS != null) {
+            this.settings.damageClass = set.DAMAGE_CLASS;
         }
-        if (set.BUFF_VS_FOOD != null) { 
-            this.settings.buffVsFood = set.BUFF_VS_FOOD; 
+        if (set.BUFF_VS_FOOD != null) {
+            this.settings.buffVsFood = set.BUFF_VS_FOOD;
         }
-        if (set.CAN_BE_ON_LEADERBOARD != null) { 
-            this.settings.leaderboardable = set.CAN_BE_ON_LEADERBOARD; 
+        if (set.CAN_BE_ON_LEADERBOARD != null) {
+            this.settings.leaderboardable = set.CAN_BE_ON_LEADERBOARD;
         }
-        if (set.INTANGIBLE != null) { 
-            this.intangibility = set.INTANGIBLE; 
+        if (set.INTANGIBLE != null) {
+            this.intangibility = set.INTANGIBLE;
         }
-        if (set.IS_SMASHER != null) { 
-            this.settings.reloadToAcceleration = set.IS_SMASHER; 
+        if (set.IS_SMASHER != null) {
+            this.settings.reloadToAcceleration = set.IS_SMASHER;
         }
-        if (set.STAT_NAMES != null) { 
-            this.settings.skillNames = set.STAT_NAMES; 
+        if (set.STAT_NAMES != null) {
+            this.settings.skillNames = set.STAT_NAMES;
         }
-        if (set.AI != null) { 
-            this.aiSettings = set.AI; 
+        if (set.AI != null) {
+            this.aiSettings = set.AI;
         }
-        if (set.ALPHA != null) { 
+        if (set.ALPHA != null) {
             this.alpha = set.ALPHA;
         }
-        if (set.INVISIBLE != null) { 
+        if (set.INVISIBLE != null) {
             this.invisible = set.INVISIBLE;
         }
-        if (set.DANGER != null) { 
-            this.dangerValue = set.DANGER; 
+        if (set.DANGER != null) {
+            this.dangerValue = set.DANGER;
         }
-        if (set.VARIES_IN_SIZE != null) { 
-            this.settings.variesInSize = set.VARIES_IN_SIZE; 
+        if (set.VARIES_IN_SIZE != null) {
+            this.settings.variesInSize = set.VARIES_IN_SIZE;
             this.squiggle = (this.settings.variesInSize) ? ran.randomRange(0.8, 1.2) : 1;
         }
         if (set.RESET_UPGRADES) {
             this.upgrades = [];
         }
-        if (set.UPGRADES_TIER_1 != null) { 
+        if (set.UPGRADES_TIER_1 != null) {
             set.UPGRADES_TIER_1.forEach((e) => {
                 this.upgrades.push({ class: e, tier: 1, level: c.TIER_1, index: e.index });
             });
         }
-        if (set.UPGRADES_TIER_2 != null) { 
+        if (set.UPGRADES_TIER_2 != null) {
             set.UPGRADES_TIER_2.forEach((e) => {
                 this.upgrades.push({ class: e, tier: 2, level: c.TIER_2, index: e.index });
             });
         }
-        if (set.UPGRADES_TIER_3 != null) { 
+        if (set.UPGRADES_TIER_3 != null) {
             set.UPGRADES_TIER_3.forEach((e) => {
                 this.upgrades.push({ class: e, tier: 3, level: c.TIER_3, index: e.index });
             });
@@ -1845,12 +1857,12 @@ class Entity {
             this.SIZE = set.SIZE * this.squiggle;
             if (this.coreSize == null) { this.coreSize = this.SIZE; }
         }
-        if (set.SKILL != null && set.SKILL != []) { 
+        if (set.SKILL != null && set.SKILL != []) {
             if (set.SKILL.length != 10) {
-                throw('Inappropiate skill raws.');
+                throw ('Inappropiate skill raws.');
             }
             this.skill.set(set.SKILL);
-        } 
+        }
         if (set.LEVEL != null) {
             if (set.LEVEL === -1) {
                 this.skill.reset();
@@ -1861,79 +1873,79 @@ class Entity {
             }
             this.refreshBodyAttributes();
         }
-        if (set.SKILL_CAP != null && set.SKILL_CAP != []) { 
+        if (set.SKILL_CAP != null && set.SKILL_CAP != []) {
             if (set.SKILL_CAP.length != 10) {
-                throw('Inappropiate skill caps.');
+                throw ('Inappropiate skill caps.');
             }
             this.skill.setCaps(set.SKILL_CAP);
-        } 
+        }
         if (set.VALUE != null) {
             this.skill.score = Math.max(this.skill.score, set.VALUE * this.squiggle);
         }
-        if (set.ALT_ABILITIES != null) { 
-            this.abilities = set.ALT_ABILITIES; 
+        if (set.ALT_ABILITIES != null) {
+            this.abilities = set.ALT_ABILITIES;
         }
-        if (set.GUNS != null) { 
+        if (set.GUNS != null) {
             let newGuns = [];
             set.GUNS.forEach((gundef) => {
                 newGuns.push(new Gun(this, gundef));
             });
             this.guns = newGuns;
         }
-        if (set.MAX_CHILDREN != null) { 
-            this.maxChildren = set.MAX_CHILDREN; 
+        if (set.MAX_CHILDREN != null) {
+            this.maxChildren = set.MAX_CHILDREN;
         }
         if (set.FOOD != null) {
-            if (set.FOOD.LEVEL != null) { 
-                this.foodLevel = set.FOOD.LEVEL; 
+            if (set.FOOD.LEVEL != null) {
+                this.foodLevel = set.FOOD.LEVEL;
                 this.foodCountup = 0;
             }
         }
         if (set.BODY != null) {
-            if (set.BODY.ACCELERATION != null) { 
-                this.ACCELERATION = set.BODY.ACCELERATION; 
+            if (set.BODY.ACCELERATION != null) {
+                this.ACCELERATION = set.BODY.ACCELERATION;
             }
-            if (set.BODY.SPEED != null) { 
-                this.SPEED = set.BODY.SPEED; 
+            if (set.BODY.SPEED != null) {
+                this.SPEED = set.BODY.SPEED;
             }
-            if (set.BODY.HEALTH != null) { 
-                this.HEALTH = set.BODY.HEALTH; 
+            if (set.BODY.HEALTH != null) {
+                this.HEALTH = set.BODY.HEALTH;
             }
-            if (set.BODY.RESIST != null) { 
+            if (set.BODY.RESIST != null) {
                 this.RESIST = set.BODY.RESIST;
             }
-            if (set.BODY.SHIELD != null) { 
-                this.SHIELD = set.BODY.SHIELD; 
+            if (set.BODY.SHIELD != null) {
+                this.SHIELD = set.BODY.SHIELD;
             }
-            if (set.BODY.REGEN != null) { 
-                this.REGEN = set.BODY.REGEN; 
+            if (set.BODY.REGEN != null) {
+                this.REGEN = set.BODY.REGEN;
             }
-            if (set.BODY.DAMAGE != null) { 
-                this.DAMAGE = set.BODY.DAMAGE; 
+            if (set.BODY.DAMAGE != null) {
+                this.DAMAGE = set.BODY.DAMAGE;
             }
-            if (set.BODY.PENETRATION != null) { 
-                this.PENETRATION = set.BODY.PENETRATION; 
+            if (set.BODY.PENETRATION != null) {
+                this.PENETRATION = set.BODY.PENETRATION;
             }
-            if (set.BODY.FOV != null) { 
-                this.FOV = set.BODY.FOV; 
+            if (set.BODY.FOV != null) {
+                this.FOV = set.BODY.FOV;
             }
-            if (set.BODY.RANGE != null) { 
-                this.RANGE = set.BODY.RANGE; 
+            if (set.BODY.RANGE != null) {
+                this.RANGE = set.BODY.RANGE;
             }
-            if (set.BODY.SHOCK_ABSORB != null) { 
-                this.SHOCK_ABSORB = set.BODY.SHOCK_ABSORB; 
+            if (set.BODY.SHOCK_ABSORB != null) {
+                this.SHOCK_ABSORB = set.BODY.SHOCK_ABSORB;
             }
-            if (set.BODY.DENSITY != null) { 
-                this.DENSITY = set.BODY.DENSITY; 
+            if (set.BODY.DENSITY != null) {
+                this.DENSITY = set.BODY.DENSITY;
             }
-            if (set.BODY.STEALTH != null) { 
-                this.STEALTH = set.BODY.STEALTH; 
+            if (set.BODY.STEALTH != null) {
+                this.STEALTH = set.BODY.STEALTH;
             }
-            if (set.BODY.PUSHABILITY != null) { 
-                this.PUSHABILITY = set.BODY.PUSHABILITY; 
+            if (set.BODY.PUSHABILITY != null) {
+                this.PUSHABILITY = set.BODY.PUSHABILITY;
             }
-            if (set.BODY.HETERO != null) { 
-                this.heteroMultiplier = set.BODY.HETERO; 
+            if (set.BODY.HETERO != null) {
+                this.heteroMultiplier = set.BODY.HETERO;
             }
             this.refreshBodyAttributes();
         }
@@ -1943,8 +1955,8 @@ class Entity {
             this.turrets = [];
             set.TURRETS.forEach(def => {
                 o = new Entity(this, this.master);
-                    ((Array.isArray(def.TYPE)) ? def.TYPE : [def.TYPE]).forEach(type => o.define(type));
-                    o.bindToMaster(def.POSITION, this);
+                ((Array.isArray(def.TYPE)) ? def.TYPE : [def.TYPE]).forEach(type => o.define(type));
+                o.bindToMaster(def.POSITION, this);
             });
         }
         if (set.mockup != null) {
@@ -1960,7 +1972,7 @@ class Entity {
 
         this.topSpeed = c.runSpeed * this.SPEED * this.skill.mob / speedReduce;
         if (this.settings.reloadToAcceleration) this.topSpeed /= Math.sqrt(this.skill.acl);
-        
+
         this.health.set(
             (((this.settings.healthWithLevel) ? 2 * this.skill.level : 0) + this.HEALTH) * this.skill.hlt
         );
@@ -1968,10 +1980,10 @@ class Entity {
         this.health.resist = 1 - 1 / Math.max(1, this.RESIST + this.skill.brst);
 
         this.shield.set(
-            (((this.settings.healthWithLevel) ? 0.6 * this.skill.level : 0) + this.SHIELD) * this.skill.shi, 
+            (((this.settings.healthWithLevel) ? 0.6 * this.skill.level : 0) + this.SHIELD) * this.skill.shi,
             Math.max(0, ((((this.settings.healthWithLevel) ? 0.006 * this.skill.level : 0) + 1) * this.REGEN) * this.skill.rgn)
         );
-        
+
         this.damage = this.DAMAGE * this.skill.atk;
 
         this.penetration = this.PENETRATION + 1.5 * (this.skill.brst + 0.8 * (this.skill.atk - 1));
@@ -1981,13 +1993,13 @@ class Entity {
         }
 
         this.fov = this.FOV * 250 * Math.sqrt(this.size) * (1 + 0.003 * this.skill.level);
-        
-        this.density = (1 + 0.08 * this.skill.level) * this.DENSITY; 
+
+        this.density = (1 + 0.08 * this.skill.level) * this.DENSITY;
 
         this.stealth = this.STEALTH;
 
-        this.pushability = this.PUSHABILITY;        
-    }    
+        this.pushability = this.PUSHABILITY;
+    }
 
     bindToMaster(position, bond) {
         this.bond = bond;
@@ -2000,9 +2012,9 @@ class Entity {
         this.settings.drawShape = false;
         // Get my position.
         this.bound = {};
-        this.bound.size =  position[0] / 20;
+        this.bound.size = position[0] / 20;
         let _off = new Vector(position[1], position[2]);
-        this.bound.angle  = position[3] * Math.PI / 180;
+        this.bound.angle = position[3] * Math.PI / 180;
         this.bound.direction = _off.direction;
         this.bound.offset = _off.length / 10;
         this.bound.arc = position[4] * Math.PI / 180;
@@ -2021,7 +2033,7 @@ class Entity {
     }
 
     get mass() {
-        return this.density * (this.size * this.size + 1); 
+        return this.density * (this.size * this.size + 1);
     }
 
     get realSize() {
@@ -2041,11 +2053,11 @@ class Entity {
             id: this.id,
             index: this.index,
             x: this.x,
-            y: this.y ,
+            y: this.y,
             vx: this.velocity.x,
-            vy: this.velocity.y,  
-            size: this.size,           
-            rsize: this.realSize,   
+            vy: this.velocity.y,
+            size: this.size,
+            rsize: this.realSize,
             status: 1,
             health: this.health.display(),
             shield: this.shield.display(),
@@ -2053,25 +2065,25 @@ class Entity {
             facing: this.facing,
             vfacing: this.vfacing,
             twiggle: this.facingType === 'autospin' || (this.facingType === 'locksFacing' && this.control.alt),
-            layer: (this.bond != null) ? this.bound.layer : 
-                    (this.type === 'wall') ? 11 : 
-                    (this.type === 'food') ? 10 : 
-                    (this.type === 'tank') ? 5 :
-                    (this.type === 'crasher') ? 1 :
-                    0,
+            layer: (this.bond != null) ? this.bound.layer :
+                (this.type === 'wall') ? 11 :
+                    (this.type === 'food') ? 10 :
+                        (this.type === 'tank') ? 5 :
+                            (this.type === 'crasher') ? 1 :
+                                0,
             color: this.color,
             name: this.name,
             score: this.skill.score,
             guns: this.guns.map(gun => gun.getLastShot()),
             turrets: this.turrets.map(turret => turret.camera(true)),
         };
-    }   
-    
+    }
+
     skillUp(stat) {
         let suc = this.skill.upgrade(stat);
         if (suc) {
             this.refreshBodyAttributes();
-            this.guns.forEach(function(gun) {
+            this.guns.forEach(function (gun) {
                 gun.syncChildren();
             });
         }
@@ -2079,8 +2091,8 @@ class Entity {
     }
 
     upgrade(number) {
-        if (number < this.upgrades.length && this.skill.level >= this.upgrades[number].level) {     
-            let saveMe = this.upgrades[number].class;           
+        if (number < this.upgrades.length && this.skill.level >= this.upgrades[number].level) {
+            let saveMe = this.upgrades[number].class;
             this.upgrades = [];
             this.define(saveMe);
             this.sendMessage('You have upgraded to ' + this.label + '.');
@@ -2089,7 +2101,7 @@ class Entity {
                 if (instance.settings.clearOnMasterUpgrade && instance.master.id === ID) {
                     instance.kill();
                 }
-            }); 
+            });
             this.skill.update();
             this.refreshBodyAttributes();
         }
@@ -2097,17 +2109,17 @@ class Entity {
 
     damageMultiplier() {
         switch (this.type) {
-        case 'swarm': 
-            return 0.25 + 1.5 * util.clamp(this.range / (this.RANGE + 1), 0, 1);
-        default: return 1;
-        } 
+            case 'swarm':
+                return 0.25 + 1.5 * util.clamp(this.range / (this.RANGE + 1), 0, 1);
+            default: return 1;
+        }
     }
 
     move() {
         let g = {
-                x: this.control.goal.x - this.x,
-                y: this.control.goal.y - this.y,
-            },
+            x: this.control.goal.x - this.x,
+            y: this.control.goal.y - this.y,
+        },
             gactive = (g.x !== 0 || g.y !== 0),
             engine = {
                 x: 0,
@@ -2115,78 +2127,78 @@ class Entity {
             },
             a = this.acceleration / roomSpeed;
         switch (this.motionType) {
-        case 'glide':
-            this.maxSpeed = this.topSpeed;
-            this.damp = 0.05;
-            break;
-        case 'motor':
-            this.maxSpeed = 0;            
-            if (this.topSpeed) {
-                this.damp = a / this.topSpeed;
-            }
-            if (gactive) {
-                let len = Math.sqrt(g.x * g.x + g.y * g.y);
-                engine = {
-                    x: a * g.x / len,
-                    y: a * g.y / len,
-                };
-            }
-            break;
-        case 'swarm': 
-            this.maxSpeed = this.topSpeed;
-            let l = util.getDistance({ x: 0, y: 0, }, g) + 1;
-            if (gactive && l > this.size) {
-                let desiredxspeed = this.topSpeed * g.x / l,
-                    desiredyspeed = this.topSpeed * g.y / l,
-                    turning = Math.sqrt((this.topSpeed * Math.max(1, this.range) + 1) / a);
-                engine = {
-                    x: (desiredxspeed - this.velocity.x) / Math.max(5, turning),
-                    y: (desiredyspeed - this.velocity.y) / Math.max(5, turning),  
-                };
-            } else {
-                if (this.velocity.length < this.topSpeed) {
+            case 'glide':
+                this.maxSpeed = this.topSpeed;
+                this.damp = 0.05;
+                break;
+            case 'motor':
+                this.maxSpeed = 0;
+                if (this.topSpeed) {
+                    this.damp = a / this.topSpeed;
+                }
+                if (gactive) {
+                    let len = Math.sqrt(g.x * g.x + g.y * g.y);
                     engine = {
-                        x: this.velocity.x * a / 20,
-                        y: this.velocity.y * a / 20,
+                        x: a * g.x / len,
+                        y: a * g.y / len,
                     };
                 }
-            }
-            break;        
-        case 'chase':
-            if (gactive) {
-                let l = util.getDistance({ x: 0, y: 0, }, g);
-                if (l > this.size * 2) {
-                    this.maxSpeed = this.topSpeed;
+                break;
+            case 'swarm':
+                this.maxSpeed = this.topSpeed;
+                let l = util.getDistance({ x: 0, y: 0, }, g) + 1;
+                if (gactive && l > this.size) {
                     let desiredxspeed = this.topSpeed * g.x / l,
-                        desiredyspeed = this.topSpeed * g.y / l;
-                    engine = {                
-                        x: (desiredxspeed - this.velocity.x) * a,
-                        y: (desiredyspeed - this.velocity.y) * a,
+                        desiredyspeed = this.topSpeed * g.y / l,
+                        turning = Math.sqrt((this.topSpeed * Math.max(1, this.range) + 1) / a);
+                    engine = {
+                        x: (desiredxspeed - this.velocity.x) / Math.max(5, turning),
+                        y: (desiredyspeed - this.velocity.y) / Math.max(5, turning),
                     };
                 } else {
+                    if (this.velocity.length < this.topSpeed) {
+                        engine = {
+                            x: this.velocity.x * a / 20,
+                            y: this.velocity.y * a / 20,
+                        };
+                    }
+                }
+                break;
+            case 'chase':
+                if (gactive) {
+                    let l = util.getDistance({ x: 0, y: 0, }, g);
+                    if (l > this.size * 2) {
+                        this.maxSpeed = this.topSpeed;
+                        let desiredxspeed = this.topSpeed * g.x / l,
+                            desiredyspeed = this.topSpeed * g.y / l;
+                        engine = {
+                            x: (desiredxspeed - this.velocity.x) * a,
+                            y: (desiredyspeed - this.velocity.y) * a,
+                        };
+                    } else {
+                        this.maxSpeed = 0;
+                    }
+                } else {
                     this.maxSpeed = 0;
-                }   
-            } else {
+                }
+                break;
+            case 'drift':
                 this.maxSpeed = 0;
-            }
-            break;
-        case 'drift':
-            this.maxSpeed = 0;
-            engine = {
-                x: g.x * a,
-                y: g.y * a,
-            };
-            break;
-        case 'bound':
-            let bound = this.bound, ref = this.bond;
-            this.x = ref.x + ref.size * bound.offset * Math.cos(bound.direction + bound.angle + ref.facing);
-            this.y = ref.y + ref.size * bound.offset * Math.sin(bound.direction + bound.angle + ref.facing);
-            this.bond.velocity.x += bound.size * this.accel.x;
-            this.bond.velocity.y += bound.size * this.accel.y;
-            this.firingArc = [ref.facing + bound.angle, bound.arc / 2];
-            nullVector(this.accel);
-            this.blend = ref.blend;
-            break;
+                engine = {
+                    x: g.x * a,
+                    y: g.y * a,
+                };
+                break;
+            case 'bound':
+                let bound = this.bound, ref = this.bond;
+                this.x = ref.x + ref.size * bound.offset * Math.cos(bound.direction + bound.angle + ref.facing);
+                this.y = ref.y + ref.size * bound.offset * Math.sin(bound.direction + bound.angle + ref.facing);
+                this.bond.velocity.x += bound.size * this.accel.x;
+                this.bond.velocity.y += bound.size * this.accel.y;
+                this.firingArc = [ref.facing + bound.angle, bound.arc / 2];
+                nullVector(this.accel);
+                this.blend = ref.blend;
+                break;
         }
         this.accel.x += engine.x * this.control.power;
         this.accel.y += engine.y * this.control.power;
@@ -2196,45 +2208,45 @@ class Entity {
         let t = this.control.target,
             tactive = (t.x !== 0 || t.y !== 0),
             oldFacing = this.facing;
-        switch(this.facingType) {
-        case 'autospin':
-            this.facing += 0.02 / roomSpeed;
-            break;
-        case 'turnWithSpeed':
-            this.facing += this.velocity.length / 90 * Math.PI / roomSpeed;
-            break;
-        case 'withMotion': 
-            this.facing = this.velocity.direction;
-            break;
-        case 'smoothWithMotion':
-        case 'looseWithMotion':
-            this.facing += util.loopSmooth(this.facing, this.velocity.direction, 4 / roomSpeed); 
-            break;
-        case 'withTarget': 
-        case 'toTarget': 
-            this.facing = Math.atan2(t.y, t.x);
-            break; 
-        case 'locksFacing': 
-            if (!this.control.alt) this.facing = Math.atan2(t.y, t.x);
-            break;
-        case 'looseWithTarget':
-        case 'looseToTarget':
-        case 'smoothToTarget':
-            this.facing += util.loopSmooth(this.facing, Math.atan2(t.y, t.x), 4 / roomSpeed); 
-            break;        
-        case 'bound':
-            let givenangle;
-            if (this.control.main) {
-                givenangle = Math.atan2(t.y, t.x);
-                let diff = util.angleDifference(givenangle, this.firingArc[0]);
-                if (Math.abs(diff) >= this.firingArc[1]) {
-                    givenangle = this.firingArc[0];// - util.clamp(Math.sign(diff), -this.firingArc[1], this.firingArc[1]);
+        switch (this.facingType) {
+            case 'autospin':
+                this.facing += 0.02 / roomSpeed;
+                break;
+            case 'turnWithSpeed':
+                this.facing += this.velocity.length / 90 * Math.PI / roomSpeed;
+                break;
+            case 'withMotion':
+                this.facing = this.velocity.direction;
+                break;
+            case 'smoothWithMotion':
+            case 'looseWithMotion':
+                this.facing += util.loopSmooth(this.facing, this.velocity.direction, 4 / roomSpeed);
+                break;
+            case 'withTarget':
+            case 'toTarget':
+                this.facing = Math.atan2(t.y, t.x);
+                break;
+            case 'locksFacing':
+                if (!this.control.alt) this.facing = Math.atan2(t.y, t.x);
+                break;
+            case 'looseWithTarget':
+            case 'looseToTarget':
+            case 'smoothToTarget':
+                this.facing += util.loopSmooth(this.facing, Math.atan2(t.y, t.x), 4 / roomSpeed);
+                break;
+            case 'bound':
+                let givenangle;
+                if (this.control.main) {
+                    givenangle = Math.atan2(t.y, t.x);
+                    let diff = util.angleDifference(givenangle, this.firingArc[0]);
+                    if (Math.abs(diff) >= this.firingArc[1]) {
+                        givenangle = this.firingArc[0];// - util.clamp(Math.sign(diff), -this.firingArc[1], this.firingArc[1]);
+                    }
+                } else {
+                    givenangle = this.firingArc[0];
                 }
-            } else {
-                givenangle = this.firingArc[0];
-            }
-            this.facing += util.loopSmooth(this.facing, givenangle, 4 / roomSpeed);
-            break;
+                this.facing += util.loopSmooth(this.facing, givenangle, 4 / roomSpeed);
+                break;
         }
         // Loop
         const TAU = 2 * Math.PI
@@ -2259,11 +2271,11 @@ class Entity {
         this.velocity.x += this.accel.x;
         this.velocity.y += this.accel.y;
         // Reset acceleration
-        nullVector(this.accel); 
+        nullVector(this.accel);
         // Apply motion
         this.stepRemaining = 1;
         this.x += this.stepRemaining * this.velocity.x / roomSpeed;
-        this.y += this.stepRemaining * this.velocity.y / roomSpeed;        
+        this.y += this.stepRemaining * this.velocity.y / roomSpeed;
     }
 
     friction() {
@@ -2293,7 +2305,7 @@ class Entity {
             this.accel.y -= Math.min(this.y - this.realSize + 50, 0) * c.ROOM_BOUND_FORCE / roomSpeed;
             this.accel.y -= Math.max(this.y + this.realSize - room.height - 50, 0) * c.ROOM_BOUND_FORCE / roomSpeed;
         }
-        if (room.gameMode === 'tdm' && this.type !== 'food') { 
+        if (room.gameMode === 'tdm' && this.type !== 'food') {
             let loc = { x: this.x, y: this.y, };
             if (
                 (this.team !== -1 && room.isIn('bas1', loc)) ||
@@ -2347,7 +2359,7 @@ class Entity {
                     "a nameless player's " + this.label :
                     (this.master.type === 'miniboss') ?
                         "a visiting " + this.label :
-                        util.addArticle(this.label) 
+                        util.addArticle(this.label)
                 :
                 this.master.name + "'s " + this.label;
             // Calculate the jackpot
@@ -2383,8 +2395,8 @@ class Entity {
                         killText += ' and ';
                     }
                     // Only if we give messages
-                    if (dothISendAText) { 
-                        instance.sendMessage('You killed ' + name + ((killers.length > 1) ? ' (with some help).' : '.')); 
+                    if (dothISendAText) {
+                        instance.sendMessage('You killed ' + name + ((killers.length > 1) ? ' (with some help).' : '.'));
                     }
                 });
                 // Prepare the next part of the next 
@@ -2403,8 +2415,8 @@ class Entity {
             this.sendMessage(killText + '.');
             // If I'm the leader, broadcast it:
             if (this.id === room.topPlayerID) {
-                let usurptText = (this.name === '') ? 'The leader': this.name;
-                if (notJustFood) { 
+                let usurptText = (this.name === '') ? 'The leader' : this.name;
+                if (notJustFood) {
                     usurptText += ' has been usurped by';
                     killers.forEach(instance => {
                         usurptText += ' ';
@@ -2420,12 +2432,12 @@ class Entity {
             }
             // Kill it
             return 1;
-        } 
+        }
         return 0;
     }
 
-    protect() { 
-        entitiesToAvoid.push(this); this.isProtected = true; 
+    protect() {
+        entitiesToAvoid.push(this); this.isProtected = true;
     }
 
     sendMessage(message) { } // Dummy
@@ -2436,7 +2448,7 @@ class Entity {
 
     destroy() {
         // Remove from the protected entities list
-        if (this.isProtected) util.remove(entitiesToAvoid, entitiesToAvoid.indexOf(this)); 
+        if (this.isProtected) util.remove(entitiesToAvoid, entitiesToAvoid.indexOf(this));
         // Remove from minimap
         let i = minimap.findIndex(entry => { return entry[0] === this.id; });
         if (i != -1) util.remove(minimap, i);
@@ -2467,10 +2479,10 @@ class Entity {
         // Remove from the collision grid
         this.removeFromGrid();
         this.isGhost = true;
-    }    
-    
+    }
+
     isDead() {
-        return this.health.amount <= 0; 
+        return this.health.amount <= 0;
     }
 }
 
@@ -2539,265 +2551,261 @@ var logs = (() => {
 })();
 
 // Essential server requires
-var http = require('http'),
-    url = require('url'),
-    WebSocket = require('ws'),
-    fs = require('fs'),
-    mockupJsonData = (() => { 
-        function rounder(val) {
-            if (Math.abs(val) < 0.00001) val = 0;
-            return +val.toPrecision(6);
-        }
-        // Define mocking up functions
-        function getMockup(e, positionInfo) {
-            return { 
-                index: e.index,
-                name: e.label,  
-                x: rounder(e.x),
-                y: rounder(e.y),
-                color: e.color,
-                shape: e.shapeData,
-                size: rounder(e.size),
-                realSize: rounder(e.realSize),
-                facing: rounder(e.facing),
-                layer: e.layer,
-                statnames: e.settings.skillNames,
-                position: positionInfo,
-                upgrades: e.upgrades.map(r => ({ tier: r.tier, index: r.index })),
-                guns: e.guns.map(function(gun) {
-                    return {
-                        offset: rounder(gun.offset),
-                        direction: rounder(gun.direction),
-                        length: rounder(gun.length),
-                        width: rounder(gun.width),
-                        aspect: rounder(gun.aspect),
-                        angle: rounder(gun.angle),
-                    };
-                }),
-                turrets: e.turrets.map(function(t) { 
-                    let out = getMockup(t, {});
-                    out.sizeFactor = rounder(t.bound.size);
-                    out.offset = rounder(t.bound.offset);
-                    out.direction = rounder(t.bound.direction);
-                    out.layer = rounder(t.bound.layer);
-                    out.angle = rounder(t.bound.angle);
-                    return out;
-                }),
-            };
-        }
-        function getDimensions(entities) {
-            /* Ritter's Algorithm (Okay it got serious modified for how we start it)
-            * 1) Add all the ends of the guns to our list of points needed to be bounded and a couple points for the body of the tank..
-            */
-            let endpoints = [];
-            let pointDisplay = [];
-            let pushEndpoints = function(model, scale, focus={ x: 0, y: 0 }, rot=0) {
-                let s = Math.abs(model.shape);
-                let z = (Math.abs(s) > lazyRealSizes.length) ? 1 : lazyRealSizes[Math.abs(s)];
-                if (z === 1) { // Body (octagon if circle)
-                    for (let i=0; i<2; i+=0.5) {
-                        endpoints.push({x: focus.x + scale * Math.cos(i*Math.PI), y: focus.y + scale * Math.sin(i*Math.PI)});
-                    }
-                } else { // Body (otherwise vertices)
-                    for (let i=(s%2)?0:Math.PI/s; i<s; i++) { 
-                        let theta = (i / s) * 2 * Math.PI;
-                        endpoints.push({x: focus.x + scale * z * Math.cos(theta), y: focus.y + scale * z * Math.sin(theta)});
-                    }
+let mockupJsonData = (() => {
+    function rounder(val) {
+        if (Math.abs(val) < 0.00001) val = 0;
+        return +val.toPrecision(6);
+    }
+    // Define mocking up functions
+    function getMockup(e, positionInfo) {
+        return {
+            index: e.index,
+            name: e.label,
+            x: rounder(e.x),
+            y: rounder(e.y),
+            color: e.color,
+            shape: e.shapeData,
+            size: rounder(e.size),
+            realSize: rounder(e.realSize),
+            facing: rounder(e.facing),
+            layer: e.layer,
+            statnames: e.settings.skillNames,
+            position: positionInfo,
+            upgrades: e.upgrades.map(r => ({ tier: r.tier, index: r.index })),
+            guns: e.guns.map(function (gun) {
+                return {
+                    offset: rounder(gun.offset),
+                    direction: rounder(gun.direction),
+                    length: rounder(gun.length),
+                    width: rounder(gun.width),
+                    aspect: rounder(gun.aspect),
+                    angle: rounder(gun.angle),
+                };
+            }),
+            turrets: e.turrets.map(function (t) {
+                let out = getMockup(t, {});
+                out.sizeFactor = rounder(t.bound.size);
+                out.offset = rounder(t.bound.offset);
+                out.direction = rounder(t.bound.direction);
+                out.layer = rounder(t.bound.layer);
+                out.angle = rounder(t.bound.angle);
+                return out;
+            }),
+        };
+    }
+    function getDimensions(entities) {
+        /* Ritter's Algorithm (Okay it got serious modified for how we start it)
+        * 1) Add all the ends of the guns to our list of points needed to be bounded and a couple points for the body of the tank..
+        */
+        let endpoints = [];
+        let pointDisplay = [];
+        let pushEndpoints = function (model, scale, focus = { x: 0, y: 0 }, rot = 0) {
+            let s = Math.abs(model.shape);
+            let z = (Math.abs(s) > lazyRealSizes.length) ? 1 : lazyRealSizes[Math.abs(s)];
+            if (z === 1) { // Body (octagon if circle)
+                for (let i = 0; i < 2; i += 0.5) {
+                    endpoints.push({ x: focus.x + scale * Math.cos(i * Math.PI), y: focus.y + scale * Math.sin(i * Math.PI) });
                 }
-                model.guns.forEach(function(gun) {
-                    let h = (gun.aspect > 0) ? scale * gun.width / 2 * gun.aspect : scale * gun.width / 2;
-                    let r = Math.atan2(h, scale * gun.length) + rot;
-                    let l = Math.sqrt(scale * scale * gun.length * gun.length + h * h);
-                    let x = focus.x + scale * gun.offset * Math.cos(gun.direction + gun.angle + rot);
-                    let y = focus.y + scale * gun.offset * Math.sin(gun.direction + gun.angle + rot);        
-                    endpoints.push({
-                        x: x + l * Math.cos(gun.angle + r),
-                        y: y + l * Math.sin(gun.angle + r),
-                    });
-                    endpoints.push({
-                        x: x + l * Math.cos(gun.angle - r),
-                        y: y + l * Math.sin(gun.angle - r),
-                    });
-                    pointDisplay.push({
-                        x: x + l * Math.cos(gun.angle + r),
-                        y: y + l * Math.sin(gun.angle + r),
-                    }); 
-                    pointDisplay.push({
-                        x: x + l * Math.cos(gun.angle - r),
-                        y: y + l * Math.sin(gun.angle - r),
-                    });
+            } else { // Body (otherwise vertices)
+                for (let i = (s % 2) ? 0 : Math.PI / s; i < s; i++) {
+                    let theta = (i / s) * 2 * Math.PI;
+                    endpoints.push({ x: focus.x + scale * z * Math.cos(theta), y: focus.y + scale * z * Math.sin(theta) });
+                }
+            }
+            model.guns.forEach(function (gun) {
+                let h = (gun.aspect > 0) ? scale * gun.width / 2 * gun.aspect : scale * gun.width / 2;
+                let r = Math.atan2(h, scale * gun.length) + rot;
+                let l = Math.sqrt(scale * scale * gun.length * gun.length + h * h);
+                let x = focus.x + scale * gun.offset * Math.cos(gun.direction + gun.angle + rot);
+                let y = focus.y + scale * gun.offset * Math.sin(gun.direction + gun.angle + rot);
+                endpoints.push({
+                    x: x + l * Math.cos(gun.angle + r),
+                    y: y + l * Math.sin(gun.angle + r),
                 });
-                model.turrets.forEach(function(turret) {
-                    pushEndpoints(
-                        turret, turret.bound.size, 
-                        { x: turret.bound.offset * Math.cos(turret.bound.angle), y: turret.bound.offset * Math.sin(turret.bound.angle) }, 
-                        turret.bound.angle
-                    );
+                endpoints.push({
+                    x: x + l * Math.cos(gun.angle - r),
+                    y: y + l * Math.sin(gun.angle - r),
                 });
-            };
-            pushEndpoints(entities, 1);
-            // 2) Find their mass center
-            let massCenter = { x: 0, y: 0 };
-            /*endpoints.forEach(function(point) {
-                massCenter.x += point.x;
-                massCenter.y += point.y;
+                pointDisplay.push({
+                    x: x + l * Math.cos(gun.angle + r),
+                    y: y + l * Math.sin(gun.angle + r),
+                });
+                pointDisplay.push({
+                    x: x + l * Math.cos(gun.angle - r),
+                    y: y + l * Math.sin(gun.angle - r),
+                });
             });
-            massCenter.x /= endpoints.length;
-            massCenter.y /= endpoints.length;*/
-            // 3) Choose three different points (hopefully ones very far from each other)
-            let chooseFurthestAndRemove = function(furthestFrom) {
-                let index = 0;
-                if (furthestFrom != -1) {
-                    let list = new goog.structs.PriorityQueue();
-                    let d;
-                    for (let i=0; i<endpoints.length; i++) {
-                        let thisPoint = endpoints[i];
-                        d = Math.pow(thisPoint.x - furthestFrom.x, 2) + Math.pow(thisPoint.y - furthestFrom.y, 2) + 1;
-                        list.enqueue(1/d, i);
-                    }
-                    index = list.dequeue();
-                }
-                let output = endpoints[index];
-                endpoints.splice(index, 1);
-                return output;
-            };
-            let point1 = chooseFurthestAndRemove(massCenter); // Choose the point furthest from the mass center
-            let point2 = chooseFurthestAndRemove(point1); // And the point furthest from that
-            // And the point which maximizes the area of our triangle (a loose look at this one)
-            let chooseBiggestTriangleAndRemove = function(point1, point2) {
+            model.turrets.forEach(function (turret) {
+                pushEndpoints(
+                    turret, turret.bound.size,
+                    { x: turret.bound.offset * Math.cos(turret.bound.angle), y: turret.bound.offset * Math.sin(turret.bound.angle) },
+                    turret.bound.angle
+                );
+            });
+        };
+        pushEndpoints(entities, 1);
+        // 2) Find their mass center
+        let massCenter = { x: 0, y: 0 };
+        /*endpoints.forEach(function(point) {
+            massCenter.x += point.x;
+            massCenter.y += point.y;
+        });
+        massCenter.x /= endpoints.length;
+        massCenter.y /= endpoints.length;*/
+        // 3) Choose three different points (hopefully ones very far from each other)
+        let chooseFurthestAndRemove = function (furthestFrom) {
+            let index = 0;
+            if (furthestFrom != -1) {
                 let list = new goog.structs.PriorityQueue();
-                let index = 0;
-                let a;
-                for (let i=0; i<endpoints.length; i++) {
+                let d;
+                for (let i = 0; i < endpoints.length; i++) {
                     let thisPoint = endpoints[i];
-                    a = Math.pow(thisPoint.x - point1.x, 2) + Math.pow(thisPoint.y - point1.y, 2) +
-                        Math.pow(thisPoint.x - point2.x, 2) + Math.pow(thisPoint.y - point2.y, 2);                                 
-                        /* We need neither to calculate the last part of the triangle 
-                        * (because it's always the same) nor divide by 2 to get the 
-                        * actual area (because we're just comparing it)
-                        */
-                    list.enqueue(1/a, i);
+                    d = Math.pow(thisPoint.x - furthestFrom.x, 2) + Math.pow(thisPoint.y - furthestFrom.y, 2) + 1;
+                    list.enqueue(1 / d, i);
                 }
                 index = list.dequeue();
-                let output = endpoints[index];
-                endpoints.splice(index, 1);
-                return output;
-            };
-            let point3 = chooseBiggestTriangleAndRemove(point1, point2);
-            // 4) Define our first enclosing circle as the one which seperates these three furthest points
-            function circleOfThreePoints(p1, p2, p3) {
-                let x1 = p1.x;
-                let y1 = p1.y;
-                let x2 = p2.x;
-                let y2 = p2.y;
-                let x3 = p3.x;
-                let y3 = p3.y;
-                let denom =  
-                    x1 * (y2 - y3) - 
-                    y1 * (x2 - x3) + 
-                    x2 * y3 -
-                    x3 * y2;
-                let xy1 = x1*x1 + y1*y1;
-                let xy2 = x2*x2 + y2*y2;
-                let xy3 = x3*x3 + y3*y3;
-                let x = ( // Numerator
-                    xy1 * (y2 - y3) +
-                    xy2 * (y3 - y1) +
-                    xy3 * (y1 - y2)
-                ) / (2 * denom);
-                let y = ( // Numerator
-                    xy1 * (x3 - x2) +
-                    xy2 * (x1 - x3) +
-                    xy3 * (x2 - x1)
-                ) / (2 * denom);
-                let r = Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2));
-                let r2 = Math.sqrt(Math.pow(x - x2, 2) + Math.pow(y - y2, 2));
-                let r3 = Math.sqrt(Math.pow(x - x3, 2) + Math.pow(y - y3, 2));
-                if (r != r2 || r != r3) {
-                    //util.log('somethings fucky');
-                }
-                return { x: x, y: y, radius: r };            
             }
-            let c = circleOfThreePoints(point1, point2, point3);
-            pointDisplay = [
-                { x: rounder(point1.x), y: rounder(point1.y), },
-                { x: rounder(point2.x), y: rounder(point2.y), },
-                { x: rounder(point3.x), y: rounder(point3.y), },
-            ];
-            let centerOfCircle = { x: c.x, y: c.y };
-            let radiusOfCircle = c.radius;
-            // 5) Check to see if we enclosed everything
-            function checkingFunction() {
-                for(var i=endpoints.length; i>0; i--) {
-                    // Select the one furthest from the center of our circle and remove it
-                    point1 = chooseFurthestAndRemove(centerOfCircle);
-                    let vectorFromPointToCircleCenter = new Vector(centerOfCircle.x - point1.x, centerOfCircle.y - point1.y);
-                    // 6) If we're still outside of this circle build a new circle which encloses the old circle and the new point
-                    if (vectorFromPointToCircleCenter.length > radiusOfCircle) {
-                        pointDisplay.push({ x: rounder(point1.x), y: rounder(point1.y), });
-                        // Define our new point as the far side of the cirle
-                        let dir = vectorFromPointToCircleCenter.direction;
-                        point2 = {
-                            x: centerOfCircle.x + radiusOfCircle * Math.cos(dir),
-                            y: centerOfCircle.y + radiusOfCircle * Math.sin(dir),
-                        };
-                        break;
-                    }
-                }
-                // False if we checked everything, true if we didn't
-                return !!endpoints.length;
+            let output = endpoints[index];
+            endpoints.splice(index, 1);
+            return output;
+        };
+        let point1 = chooseFurthestAndRemove(massCenter); // Choose the point furthest from the mass center
+        let point2 = chooseFurthestAndRemove(point1); // And the point furthest from that
+        // And the point which maximizes the area of our triangle (a loose look at this one)
+        let chooseBiggestTriangleAndRemove = function (point1, point2) {
+            let list = new goog.structs.PriorityQueue();
+            let index = 0;
+            let a;
+            for (let i = 0; i < endpoints.length; i++) {
+                let thisPoint = endpoints[i];
+                a = Math.pow(thisPoint.x - point1.x, 2) + Math.pow(thisPoint.y - point1.y, 2) +
+                    Math.pow(thisPoint.x - point2.x, 2) + Math.pow(thisPoint.y - point2.y, 2);
+                /* We need neither to calculate the last part of the triangle 
+                * (because it's always the same) nor divide by 2 to get the 
+                * actual area (because we're just comparing it)
+                */
+                list.enqueue(1 / a, i);
             }
-            while (checkingFunction()) { // 7) Repeat until we enclose everything
-                centerOfCircle = {
-                    x: (point1.x + point2.x) / 2,
-                    y: (point1.y + point2.y) / 2,
-                };
-                radiusOfCircle = Math.sqrt(Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y, 2)) / 2;
+            index = list.dequeue();
+            let output = endpoints[index];
+            endpoints.splice(index, 1);
+            return output;
+        };
+        let point3 = chooseBiggestTriangleAndRemove(point1, point2);
+        // 4) Define our first enclosing circle as the one which seperates these three furthest points
+        function circleOfThreePoints(p1, p2, p3) {
+            let x1 = p1.x;
+            let y1 = p1.y;
+            let x2 = p2.x;
+            let y2 = p2.y;
+            let x3 = p3.x;
+            let y3 = p3.y;
+            let denom =
+                x1 * (y2 - y3) -
+                y1 * (x2 - x3) +
+                x2 * y3 -
+                x3 * y2;
+            let xy1 = x1 * x1 + y1 * y1;
+            let xy2 = x2 * x2 + y2 * y2;
+            let xy3 = x3 * x3 + y3 * y3;
+            let x = ( // Numerator
+                xy1 * (y2 - y3) +
+                xy2 * (y3 - y1) +
+                xy3 * (y1 - y2)
+            ) / (2 * denom);
+            let y = ( // Numerator
+                xy1 * (x3 - x2) +
+                xy2 * (x1 - x3) +
+                xy3 * (x2 - x1)
+            ) / (2 * denom);
+            let r = Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2));
+            let r2 = Math.sqrt(Math.pow(x - x2, 2) + Math.pow(y - y2, 2));
+            let r3 = Math.sqrt(Math.pow(x - x3, 2) + Math.pow(y - y3, 2));
+            if (r != r2 || r != r3) {
+                //util.log('somethings fucky');
             }
-            // 8) Since this algorithm isn't perfect but we know our shapes are bilaterally symmetrical, we bind this circle along the x-axis to make it behave better
-            return {
-                middle: { x: rounder(centerOfCircle.x), y: 0 },
-                axis: rounder(radiusOfCircle * 2),
-                points: pointDisplay,
-            };
+            return { x: x, y: y, radius: r };
         }
-        // Save them 
-        let mockupData = [];
-        for (let k in Class) {
-            try {
-                if (!Class.hasOwnProperty(k)) continue;
-                let type = Class[k];   
-                // Create a reference entities which we'll then take an image of.
-                let temptank = new Entity({x: 0, y: 0});
-                temptank.define(type);
-                temptank.name = type.LABEL; // Rename it (for the upgrades menu).
-                // Fetch the mockup.
-                type.mockup = {
-                    body: temptank.camera(true),
-                    position: getDimensions(temptank),
-                };
-                // This is to pass the size information about the mockup that we didn't have until we created the mockup
-                type.mockup.body.position = type.mockup.position;
-                // Add the new data to the thing.
-                mockupData.push(getMockup(temptank, type.mockup.position));
-                // Kill the reference entities.
-                temptank.destroy();
-            } catch(error) {
-                util.error(error);
-                util.error(k);
-                util.error(Class[k]);
-            } 
+        let c = circleOfThreePoints(point1, point2, point3);
+        pointDisplay = [
+            { x: rounder(point1.x), y: rounder(point1.y), },
+            { x: rounder(point2.x), y: rounder(point2.y), },
+            { x: rounder(point3.x), y: rounder(point3.y), },
+        ];
+        let centerOfCircle = { x: c.x, y: c.y };
+        let radiusOfCircle = c.radius;
+        // 5) Check to see if we enclosed everything
+        function checkingFunction() {
+            for (var i = endpoints.length; i > 0; i--) {
+                // Select the one furthest from the center of our circle and remove it
+                point1 = chooseFurthestAndRemove(centerOfCircle);
+                let vectorFromPointToCircleCenter = new Vector(centerOfCircle.x - point1.x, centerOfCircle.y - point1.y);
+                // 6) If we're still outside of this circle build a new circle which encloses the old circle and the new point
+                if (vectorFromPointToCircleCenter.length > radiusOfCircle) {
+                    pointDisplay.push({ x: rounder(point1.x), y: rounder(point1.y), });
+                    // Define our new point as the far side of the cirle
+                    let dir = vectorFromPointToCircleCenter.direction;
+                    point2 = {
+                        x: centerOfCircle.x + radiusOfCircle * Math.cos(dir),
+                        y: centerOfCircle.y + radiusOfCircle * Math.sin(dir),
+                    };
+                    break;
+                }
+            }
+            // False if we checked everything, true if we didn't
+            return !!endpoints.length;
         }
-        // Remove them
-        purgeEntities();
-        // Build the function to return
-        let writeData = JSON.stringify(mockupData);
-        return writeData;
-    })();
+        while (checkingFunction()) { // 7) Repeat until we enclose everything
+            centerOfCircle = {
+                x: (point1.x + point2.x) / 2,
+                y: (point1.y + point2.y) / 2,
+            };
+            radiusOfCircle = Math.sqrt(Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y, 2)) / 2;
+        }
+        // 8) Since this algorithm isn't perfect but we know our shapes are bilaterally symmetrical, we bind this circle along the x-axis to make it behave better
+        return {
+            middle: { x: rounder(centerOfCircle.x), y: 0 },
+            axis: rounder(radiusOfCircle * 2),
+            points: pointDisplay,
+        };
+    }
+    // Save them 
+    let mockupData = [];
+    for (let k in Class) {
+        try {
+            if (!Class.hasOwnProperty(k)) continue;
+            let type = Class[k];
+            // Create a reference entities which we'll then take an image of.
+            let temptank = new Entity({ x: 0, y: 0 });
+            temptank.define(type);
+            temptank.name = type.LABEL; // Rename it (for the upgrades menu).
+            // Fetch the mockup.
+            type.mockup = {
+                body: temptank.camera(true),
+                position: getDimensions(temptank),
+            };
+            // This is to pass the size information about the mockup that we didn't have until we created the mockup
+            type.mockup.body.position = type.mockup.position;
+            // Add the new data to the thing.
+            mockupData.push(getMockup(temptank, type.mockup.position));
+            // Kill the reference entities.
+            temptank.destroy();
+        } catch (error) {
+            util.error(error);
+            util.error(k);
+            util.error(Class[k]);
+        }
+    }
+    // Remove them
+    purgeEntities();
+    // Build the function to return
+    let writeData = mockupData;
+    return writeData;
+})();
 
 // Websocket behavior
 const sockets = (() => {
-    const protocol = require('./lib/fasttalk');
+    const protocol = require('./lib/protocol');
     let clients = [], players = [];
     return {
         broadcast: message => {
@@ -2830,7 +2838,7 @@ const sockets = (() => {
                 // Free the view
                 util.remove(views, views.indexOf(socket.view));
                 // Remove the socket
-                util.remove(clients, clients.indexOf(socket));        
+                util.remove(clients, clients.indexOf(socket));
                 util.log('[INFO] Socket closed. Views: ' + views.length + '. Clients: ' + clients.length + '.');
             }
             // Being kicked 
@@ -2852,206 +2860,210 @@ const sockets = (() => {
                 let player = socket.player;
                 // Handle the request
                 switch (m.shift()) {
-                case 'k': { // key verification
-                    if (m.length > 1) { socket.kick('Ill-sized key request.'); return 1; }
-                    if (socket.status.verified) { socket.kick('Duplicate player spawn attempt.'); return 1; }
-                    socket.talk('w', true)
-                    if (m.length === 1) {
-                        let key = m[0];
-                        socket.key = key;
-                        util.log('[INFO] A socket was verified with the token: '); util.log(key);
-                    }
-                    socket.verified = true;
-                    util.log('Clients: ' + clients.length);
-                    /*if (m.length !== 1) { socket.kick('Ill-sized key request.'); return 1; }
-                    // Get data
-                    // Verify it
-                    if (typeof key !== 'string') { socket.kick('Weird key offered.'); return 1; }
-                    if (key.length > 64) { socket.kick('Overly-long key offered.'); return 1; }
-                    if (socket.status.verified) { socket.kick('Duplicate player spawn attempt.'); return 1; }
-                    // Otherwise proceed to check if it's available.
-                    if (keys.indexOf(key) != -1) {
-                        // Save the key
-                        socket.key = key.substr(0, 64);
-                        // Make it unavailable
-                        util.remove(keys, keys.indexOf(key));
+                    case 'k': { // key verification
+                        if (m.length > 1) { socket.kick('Ill-sized key request.'); return 1; }
+                        if (socket.status.verified) { socket.kick('Duplicate player spawn attempt.'); return 1; }
+                        socket.talk('w', true)
+                        if (m.length === 1) {
+                            let key = m[0];
+                            socket.key = key;
+                            util.log('[INFO] A socket was verified with the token: '); util.log(key);
+                        }
                         socket.verified = true;
-                        // Proceed
-                        socket.talk('w', true);
-                        util.log('[INFO] A socket was verified with the token: '); util.log(key);
                         util.log('Clients: ' + clients.length);
-                    } else {
-                        // If not, kick 'em (nicely)
-                        util.log('[INFO] Invalid player verification attempt.');
-                        socket.lastWords('w', false);
-                    }*/
-                } break;
-                case 's': { // spawn request
-                    if (!socket.status.deceased) { socket.kick('Trying to spawn while already alive.'); return 1; }
-                    if (m.length !== 2) { socket.kick('Ill-sized spawn request.'); return 1; }
-                    // Get data
-                    let name = m[0].replace(c.BANNED_CHARACTERS_REGEX, '');
-                    let needsRoom = m[1];
-                    // Verify it
-                    if (typeof name != 'string') { socket.kick('Bad spawn request.'); return 1; }
-                    if (encodeURI(name).split(/%..|./).length > 48) { socket.kick('Overly-long name.'); return 1; }
-                    if (needsRoom !== -1 && needsRoom !== 0) { socket.kick('Bad spawn request.'); return 1; }
-                    // Bring to life
-                    socket.status.deceased = false;
-                    // Define the player.
-                    if (players.indexOf(socket.player) != -1) { util.remove(players, players.indexOf(socket.player));  }
-                    // Free the old view
-                    if (views.indexOf(socket.view) != -1) { util.remove(views, views.indexOf(socket.view)); socket.makeView(); }
-                    socket.player = socket.spawn(name);     
-                    // Give it the room state
-                    if (!needsRoom) { 
-                        socket.talk(
-                            'R',
-                            room.width,
-                            room.height,
-                            JSON.stringify(c.ROOM_SETUP), 
-                            JSON.stringify(util.serverStartTime),
-                            roomSpeed
-                        );
-                    }
-                    // Start the update rhythm immediately
-                    socket.update(0);  
-                    // Log it    
-                    util.log('[INFO] ' + (m[0]) + (needsRoom ? ' joined' : ' rejoined') + ' the game! Players: ' + players.length);   
-                } break;
-                case 'S': { // clock syncing
-                    if (m.length !== 1) { socket.kick('Ill-sized sync packet.'); return 1; }
-                    // Get data
-                    let synctick = m[0];
-                    // Verify it
-                    if (typeof synctick !== 'number') { socket.kick('Weird sync packet.'); return 1; }
-                    // Bounce it back
-                    socket.talk('S', synctick, util.time());
-                } break;
-                case 'p': { // ping
-                    if (m.length !== 1) { socket.kick('Ill-sized ping.'); return 1; }
-                    // Get data
-                    let ping = m[0];
-                    // Verify it
-                    if (typeof ping !== 'number') { socket.kick('Weird ping.'); return 1; }
-                    // Pong
-                    socket.talk('p', m[0]); // Just pong it right back
-                    socket.status.lastHeartbeat = util.time();
-                } break;
-                case 'd': { // downlink
-                    if (m.length !== 1) { socket.kick('Ill-sized downlink.'); return 1; }
-                    // Get data
-                    let time = m[0];
-                    // Verify data
-                    if (typeof time !== 'number') { socket.kick('Bad downlink.'); return 1; }
-                    // The downlink indicates that the client has received an update and is now ready to receive more.
-                    socket.status.receiving = 0;
-                    socket.camera.ping = util.time() - time;
-                    socket.camera.lastDowndate = util.time();
-                    // Schedule a new update cycle
-                    // Either fires immediately or however much longer it's supposed to wait per the config.
-                    socket.update(Math.max(0, (1000 / c.networkUpdateFactor) - (util.time() - socket.camera.lastUpdate)));
-                } break;
-                case 'C': { // command packet
-                    if (m.length !== 3) { socket.kick('Ill-sized command packet.'); return 1; }
-                    // Get data
-                    let target = {
+                        /*if (m.length !== 1) { socket.kick('Ill-sized key request.'); return 1; }
+                        // Get data
+                        // Verify it
+                        if (typeof key !== 'string') { socket.kick('Weird key offered.'); return 1; }
+                        if (key.length > 64) { socket.kick('Overly-long key offered.'); return 1; }
+                        if (socket.status.verified) { socket.kick('Duplicate player spawn attempt.'); return 1; }
+                        // Otherwise proceed to check if it's available.
+                        if (keys.indexOf(key) != -1) {
+                            // Save the key
+                            socket.key = key.substr(0, 64);
+                            // Make it unavailable
+                            util.remove(keys, keys.indexOf(key));
+                            socket.verified = true;
+                            // Proceed
+                            socket.talk('w', true);
+                            util.log('[INFO] A socket was verified with the token: '); util.log(key);
+                            util.log('Clients: ' + clients.length);
+                        } else {
+                            // If not, kick 'em (nicely)
+                            util.log('[INFO] Invalid player verification attempt.');
+                            socket.lastWords('w', false);
+                        }*/
+                    } break;
+                    case 's': { // spawn request
+                        if (!socket.status.deceased) { socket.kick('Trying to spawn while already alive.'); return 1; }
+                        if (m.length !== 2) { socket.kick('Ill-sized spawn request.'); return 1; }
+                        // Get data
+                        let name = m[0].replace(c.BANNED_CHARACTERS_REGEX, '');
+                        let needsRoom = m[1];
+                        // Verify it
+                        if (typeof name != 'string') { socket.kick('Bad spawn request.'); return 1; }
+                        if (encodeURI(name).split(/%..|./).length > 48) { socket.kick('Overly-long name.'); return 1; }
+                        if (needsRoom !== -1 && needsRoom !== 0) { socket.kick('Bad spawn request.'); return 1; }
+                        // Bring to life
+                        socket.status.deceased = false;
+                        // Define the player.
+                        if (players.indexOf(socket.player) != -1) { util.remove(players, players.indexOf(socket.player)); }
+                        // Free the old view
+                        if (views.indexOf(socket.view) != -1) { util.remove(views, views.indexOf(socket.view)); socket.makeView(); }
+                        socket.player = socket.spawn(name);
+                        // Give it the room state
+                        if (!needsRoom) {
+                            socket.talk(
+                                'R',
+                                room.width,
+                                room.height,
+                                JSON.stringify(c.ROOM_SETUP),
+                                JSON.stringify(util.serverStartTime),
+                                roomSpeed
+                            );
+                        }
+                        // Start the update rhythm immediately
+                        socket.update(0);
+                        // Log it    
+                        util.log('[INFO] ' + (m[0]) + (needsRoom ? ' joined' : ' rejoined') + ' the game! Players: ' + players.length);
+                    } break;
+                    case 'S': { // clock syncing
+                        if (m.length !== 1) { socket.kick('Ill-sized sync packet.'); return 1; }
+                        // Get data
+                        let synctick = m[0];
+                        // Verify it
+                        if (typeof synctick !== 'number') { socket.kick('Weird sync packet.'); return 1; }
+                        // Bounce it back
+                        socket.talk('S', synctick, util.time());
+                    } break;
+                    case 'p': { // ping
+                        if (m.length !== 1) { socket.kick('Ill-sized ping.'); return 1; }
+                        // Get data
+                        let ping = m[0];
+                        // Verify it
+                        if (typeof ping !== 'number') { socket.kick('Weird ping.'); return 1; }
+                        // Pong
+                        socket.talk('p', m[0]); // Just pong it right back
+                        socket.status.lastHeartbeat = util.time();
+                    } break;
+                    case 'd': { // downlink
+                        if (m.length !== 1) { socket.kick('Ill-sized downlink.'); return 1; }
+                        // Get data
+                        let time = m[0];
+                        // Verify data
+                        if (typeof time !== 'number') { socket.kick('Bad downlink.'); return 1; }
+                        // The downlink indicates that the client has received an update and is now ready to receive more.
+                        socket.status.receiving = 0;
+                        socket.camera.ping = util.time() - time;
+                        socket.camera.lastDowndate = util.time();
+                        // Schedule a new update cycle
+                        // Either fires immediately or however much longer it's supposed to wait per the config.
+                        socket.update(Math.max(0, (1000 / c.networkUpdateFactor) - (util.time() - socket.camera.lastUpdate)));
+                    } break;
+                    case 'C': { // command packet
+                        if (m.length !== 3) { socket.kick('Ill-sized command packet.'); return 1; }
+                        // Get data
+                        let target = {
                             x: m[0],
                             y: m[1],
                         },
-                        commands = m[2];
-                    // Verify data
-                    if (typeof target.x !== 'number' || typeof target.y !== 'number' || typeof commands !== 'number') { socket.kick('Weird downlink.'); return 1; }
-                    if (commands > 255) { socket.kick('Malformed command packet.'); return 1; }
-                    // Put the new target in
-                    player.target = target
-                    // Process the commands
-                    if (player.command != null && player.body != null) {
-                        player.command.up    = (commands &  1)
-                        player.command.down  = (commands &  2) >> 1
-                        player.command.left  = (commands &  4) >> 2
-                        player.command.right = (commands &  8) >> 3
-                        player.command.lmb   = (commands & 16) >> 4
-                        player.command.mmb   = (commands & 32) >> 5
-                        player.command.rmb   = (commands & 64) >> 6
-                    }
-                    // Update the thingy 
-                    socket.timeout.set(commands)
-                } break;
-                case 't': { // player toggle
-                    if (m.length !== 1) { socket.kick('Ill-sized toggle.'); return 1; }
-                    // Get data
-                    let given = '',
-                        tog = m[0];
-                    // Verify request
-                    if (typeof tog !== 'number') { socket.kick('Weird toggle.'); return 1;  }
-                    // Decipher what we're supposed to do.
-                    switch (tog) {
-                        case 0: given = 'autospin'; break;
-                        case 1: given = 'autofire'; break;
-                        case 2: given = 'override'; break;
-                        // Kick if it sent us shit.
-                        default: socket.kick('Bad toggle.'); return 1;
-                    }
-                    // Apply a good request.
-                    if (player.command != null && player.body != null) {
-                        player.command[given] = !player.command[given];
-                        // Send a message.
-                        player.body.sendMessage(given.charAt(0).toUpperCase() + given.slice(1) + ((player.command[given]) ? ' enabled.' : ' disabled.'));
-                    }
-                } break;
-                case 'U': { // upgrade request
-                    if (m.length !== 1) { socket.kick('Ill-sized upgrade request.'); return 1; }
-                    // Get data
-                    let number = m[0];
-                    // Verify the request
-                    if (typeof number != 'number' || number < 0) { socket.kick('Bad upgrade request.'); return 1; }
-                    // Upgrade it
-                    if (player.body != null) {
-                        player.body.upgrade(number); // Ask to upgrade
-                    }
-                } break;
-                case 'x': { // skill upgrade request
-                    if (m.length !== 1) { socket.kick('Ill-sized skill request.'); return 1; }
-                    let number = m[0], stat = '';
-                    // Verify the request
-                    if (typeof number != 'number') { socket.kick('Weird stat upgrade request.'); return 1; }
-                    // Decipher it
-                    switch (number) {
-                        case 0: stat = 'atk'; break;
-                        case 1: stat = 'hlt'; break;
-                        case 2: stat = 'spd'; break;
-                        case 3: stat = 'str'; break;
-                        case 4: stat = 'pen'; break;
-                        case 5: stat = 'dam'; break;
-                        case 6: stat = 'rld'; break;
-                        case 7: stat = 'mob'; break;
-                        case 8: stat = 'rgn'; break;
-                        case 9: stat = 'shi'; break;
-                        default: socket.kick('Unknown stat upgrade request.'); return 1;
-                    }
-                    // Apply it
-                    if (player.body != null) {
-                        player.body.skillUp(stat); // Ask to upgrade a stat
-                    }
-                } break;
-                case 'L': { // level up cheat
-                    if (m.length !== 0) { socket.kick('Ill-sized level-up request.'); return 1; }
-                    // cheatingbois
-                    if (player.body != null) { if (player.body.skill.level < c.SKILL_CHEAT_CAP || ((socket.key === process.env.SECRET) && player.body.skill.level < 45)) {
-                        player.body.skill.score += player.body.skill.levelScore;
-                        player.body.skill.maintain();
-                        player.body.refreshBodyAttributes();
-                    } }
-                } break;
-                case '0': { // testbed cheat
-                    if (m.length !== 0) { socket.kick('Ill-sized testbed request.'); return 1; }
-                    // cheatingbois
-                    if (player.body != null) { if (socket.key === process.env.SECRET) {
-                        player.body.define(Class.testbed);
-                    } }
-                } break;
-                default: socket.kick('Bad packet index.');
+                            commands = m[2];
+                        // Verify data
+                        if (typeof target.x !== 'number' || typeof target.y !== 'number' || typeof commands !== 'number') { socket.kick('Weird downlink.'); return 1; }
+                        if (commands > 255) { socket.kick('Malformed command packet.'); return 1; }
+                        // Put the new target in
+                        player.target = target
+                        // Process the commands
+                        if (player.command != null && player.body != null) {
+                            player.command.up = (commands & 1)
+                            player.command.down = (commands & 2) >> 1
+                            player.command.left = (commands & 4) >> 2
+                            player.command.right = (commands & 8) >> 3
+                            player.command.lmb = (commands & 16) >> 4
+                            player.command.mmb = (commands & 32) >> 5
+                            player.command.rmb = (commands & 64) >> 6
+                        }
+                        // Update the thingy 
+                        socket.timeout.set(commands)
+                    } break;
+                    case 't': { // player toggle
+                        if (m.length !== 1) { socket.kick('Ill-sized toggle.'); return 1; }
+                        // Get data
+                        let given = '',
+                            tog = m[0];
+                        // Verify request
+                        if (typeof tog !== 'number') { socket.kick('Weird toggle.'); return 1; }
+                        // Decipher what we're supposed to do.
+                        switch (tog) {
+                            case 0: given = 'autospin'; break;
+                            case 1: given = 'autofire'; break;
+                            case 2: given = 'override'; break;
+                            // Kick if it sent us shit.
+                            default: socket.kick('Bad toggle.'); return 1;
+                        }
+                        // Apply a good request.
+                        if (player.command != null && player.body != null) {
+                            player.command[given] = !player.command[given];
+                            // Send a message.
+                            player.body.sendMessage(given.charAt(0).toUpperCase() + given.slice(1) + ((player.command[given]) ? ' enabled.' : ' disabled.'));
+                        }
+                    } break;
+                    case 'U': { // upgrade request
+                        if (m.length !== 1) { socket.kick('Ill-sized upgrade request.'); return 1; }
+                        // Get data
+                        let number = m[0];
+                        // Verify the request
+                        if (typeof number != 'number' || number < 0) { socket.kick('Bad upgrade request.'); return 1; }
+                        // Upgrade it
+                        if (player.body != null) {
+                            player.body.upgrade(number); // Ask to upgrade
+                        }
+                    } break;
+                    case 'x': { // skill upgrade request
+                        if (m.length !== 1) { socket.kick('Ill-sized skill request.'); return 1; }
+                        let number = m[0], stat = '';
+                        // Verify the request
+                        if (typeof number != 'number') { socket.kick('Weird stat upgrade request.'); return 1; }
+                        // Decipher it
+                        switch (number) {
+                            case 0: stat = 'atk'; break;
+                            case 1: stat = 'hlt'; break;
+                            case 2: stat = 'spd'; break;
+                            case 3: stat = 'str'; break;
+                            case 4: stat = 'pen'; break;
+                            case 5: stat = 'dam'; break;
+                            case 6: stat = 'rld'; break;
+                            case 7: stat = 'mob'; break;
+                            case 8: stat = 'rgn'; break;
+                            case 9: stat = 'shi'; break;
+                            default: socket.kick('Unknown stat upgrade request.'); return 1;
+                        }
+                        // Apply it
+                        if (player.body != null) {
+                            player.body.skillUp(stat); // Ask to upgrade a stat
+                        }
+                    } break;
+                    case 'L': { // level up cheat
+                        if (m.length !== 0) { socket.kick('Ill-sized level-up request.'); return 1; }
+                        // cheatingbois
+                        if (player.body != null) {
+                            if (player.body.skill.level < c.SKILL_CHEAT_CAP || ((socket.key === process.env.SECRET) && player.body.skill.level < 45)) {
+                                player.body.skill.score += player.body.skill.levelScore;
+                                player.body.skill.maintain();
+                                player.body.refreshBodyAttributes();
+                            }
+                        }
+                    } break;
+                    case '0': { // testbed cheat
+                        if (m.length !== 0) { socket.kick('Ill-sized testbed request.'); return 1; }
+                        // cheatingbois
+                        if (player.body != null) {
+                            if (socket.key === process.env.SECRET) {
+                                player.body.define(Class.testbed);
+                            }
+                        }
+                    } break;
+                    default: socket.kick('Bad packet index.');
                 }
             }
             // Monitor traffic and handle inactivity disconnects
@@ -3066,12 +3078,12 @@ const sockets = (() => {
                     // Add a strike if there's more than 50 requests in a second
                     if (socket.status.requests > 50) {
                         strikes++;
-                    } else { 
+                    } else {
                         strikes = 0;
                     }
                     // Kick if we've had 3 violations in a row
                     if (strikes > 3) {
-                        socket.kick('Socket traffic volume violation!'); return 0; 
+                        socket.kick('Socket traffic volume violation!'); return 0;
                     }
                     // Reset the requests
                     socket.status.requests = 0;
@@ -3091,28 +3103,28 @@ const sockets = (() => {
                             update: (newValue) => {
                                 let eh = false;
                                 if (value == null) { eh = true; }
-                                else { 
+                                else {
                                     if (typeof newValue != typeof value) { eh = true; }
                                     // Decide what to do based on what type it is
                                     switch (typeof newValue) {
-                                    case 'number':
-                                    case 'string': {
-                                        if (newValue !== value) { eh = true; }
-                                    } break;
-                                    case 'object': {
-                                        if (Array.isArray(newValue)) {
-                                            if (newValue.length !== value.length) { eh = true; }
-                                            else { 
-                                                for (let i=0, len=newValue.length; i<len; i++) {
-                                                    if (newValue[i] !== value[i]) eh = true;
+                                        case 'number':
+                                        case 'string': {
+                                            if (newValue !== value) { eh = true; }
+                                        } break;
+                                        case 'object': {
+                                            if (Array.isArray(newValue)) {
+                                                if (newValue.length !== value.length) { eh = true; }
+                                                else {
+                                                    for (let i = 0, len = newValue.length; i < len; i++) {
+                                                        if (newValue[i] !== value[i]) eh = true;
+                                                    }
                                                 }
+                                                break;
                                             }
-                                            break;
-                                        }
-                                    } // jshint ignore:line
-                                    default:
-                                        util.error(newValue); 
-                                        throw new Error('Unsupported type for a floppyvar!');
+                                        } // jshint ignore:line
+                                        default:
+                                            util.error(newValue);
+                                            throw new Error('Unsupported type for a floppyvar!');
                                     }
                                 }
                                 // Update if neeeded
@@ -3132,7 +3144,7 @@ const sockets = (() => {
                     }
                     // This keeps track of the skills container
                     function container(player) {
-                        let vars = [], 
+                        let vars = [],
                             skills = player.body.skill,
                             out = [],
                             statnames = ['atk', 'hlt', 'spd', 'str', 'pen', 'dam', 'rld', 'mob', 'rgn', 'shi'];
@@ -3157,7 +3169,7 @@ const sockets = (() => {
                                 * excessive updates long after the first and only 
                                 * needed one as it slowly hits each updated value
                                 */
-                                vars.forEach(e => { if (e.publish() != null) needsupdate = true; }); 
+                                vars.forEach(e => { if (e.publish() != null) needsupdate = true; });
                                 if (needsupdate) {
                                     // Update everything
                                     statnames.forEach(a => {
@@ -3209,8 +3221,8 @@ const sockets = (() => {
                         gui.points.update(b.skill.points);
                         // Update the upgrades
                         let upgrades = [];
-                        b.upgrades.forEach(function(e) {
-                            if (b.skill.level >= e.level) { 
+                        b.upgrades.forEach(function (e) {
+                            if (b.skill.level >= e.level) {
                                 upgrades.push(e.index);
                             }
                         });
@@ -3237,19 +3249,20 @@ const sockets = (() => {
                         };
                         // Encode which we'll be updating and capture those values only
                         let oo = [0];
-                        if (o.fps != null)      { oo[0] += 0x0001; oo.push(o.fps || 1); }
-                        if (o.label != null)    { oo[0] += 0x0002; 
-                            oo.push(o.label); 
-                            oo.push(o.color || gui.master.teamColor); 
+                        if (o.fps != null) { oo[0] += 0x0001; oo.push(o.fps || 1); }
+                        if (o.label != null) {
+                            oo[0] += 0x0002;
+                            oo.push(o.label);
+                            oo.push(o.color || gui.master.teamColor);
                             oo.push(gui.bodyid);
                         }
-                        if (o.score != null)    { oo[0] += 0x0004; oo.push(o.score); }
-                        if (o.points != null)   { oo[0] += 0x0008; oo.push(o.points); }
+                        if (o.score != null) { oo[0] += 0x0004; oo.push(o.score); }
+                        if (o.points != null) { oo[0] += 0x0008; oo.push(o.points); }
                         if (o.upgrades != null) { oo[0] += 0x0010; oo.push(o.upgrades.length, ...o.upgrades); }
-                        if (o.statsdata != null){ oo[0] += 0x0020; oo.push(...o.statsdata); }
-                        if (o.skills != null)   { oo[0] += 0x0040; oo.push(o.skills); }
-                        if (o.accel != null)    { oo[0] += 0x0080; oo.push(o.accel); }
-                        if (o.top != null)      { oo[0] += 0x0100; oo.push(o.top); }
+                        if (o.statsdata != null) { oo[0] += 0x0020; oo.push(...o.statsdata); }
+                        if (o.skills != null) { oo[0] += 0x0040; oo.push(o.skills); }
+                        if (o.accel != null) { oo[0] += 0x0080; oo.push(o.accel); }
+                        if (o.top != null) { oo[0] += 0x0100; oo.push(o.top); }
                         // Output it
                         return oo;
                     }
@@ -3290,13 +3303,13 @@ const sockets = (() => {
                         case "tdm": {
                             // Count how many others there are
                             let census = [1, 1, 1, 1], scoreCensus = [1, 1, 1, 1];
-                            players.forEach(p => { 
-                                census[p.team - 1]++; 
+                            players.forEach(p => {
+                                census[p.team - 1]++;
                                 if (p.body != null) { scoreCensus[p.team - 1] += p.body.skill.score; }
                             });
                             let possiblities = [];
-                            for (let i=0, m=0; i<4; i++) {
-                                let v = Math.round(1000000 * (room['bas'+(i+1)].length + 1) / (census[i] + 1) / scoreCensus[i]);
+                            for (let i = 0, m = 0; i < 4; i++) {
+                                let v = Math.round(1000000 * (room['bas' + (i + 1)].length + 1) / (census[i] + 1) / scoreCensus[i]);
                                 if (v > m) {
                                     m = v; possiblities = [i];
                                 }
@@ -3313,17 +3326,17 @@ const sockets = (() => {
                     socket.rememberedTeam = player.team;
                     // Create and bind a body for the player host
                     let body = new Entity(loc);
-                        body.protect();
-                        body.define(Class.basic); // Start as a basic tank
-                        body.name = name; // Define the name
-                        // Dev hax
-                        if (socket.key === 'testl' || socket.key === 'testk') {
-                            body.name = "\u200b" + body.name;
-                            body.define({ CAN_BE_ON_LEADERBOARD: false, });
-                        }                        
-                        body.addController(new io_listenToPlayer(body, player)); // Make it listen
-                        body.sendMessage = content => messenger(socket, content); // Make it speak
-                        body.invuln = true; // Make it safe
+                    body.protect();
+                    body.define(Class.basic); // Start as a basic tank
+                    body.name = name; // Define the name
+                    // Dev hax
+                    if (socket.key === 'testl' || socket.key === 'testk') {
+                        body.name = "\u200b" + body.name;
+                        body.define({ CAN_BE_ON_LEADERBOARD: false, });
+                    }
+                    body.addController(new io_listenToPlayer(body, player)); // Make it listen
+                    body.sendMessage = content => messenger(socket, content); // Make it speak
+                    body.invuln = true; // Make it safe
                     player.body = body;
                     // Decide how to color and team the body
                     switch (room.gameMode) {
@@ -3332,7 +3345,7 @@ const sockets = (() => {
                             body.color = [10, 11, 12, 15][player.team - 1];
                         } break;
                         default: {
-                            body.color = (c.RANDOM_COLORS) ? 
+                            body.color = (c.RANDOM_COLORS) ?
                                 ran.choose([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]) : 12; // red
                         }
                     }
@@ -3399,7 +3412,7 @@ const sockets = (() => {
                             data.facing,
                             // 2: layer 
                             data.layer
-                        );            
+                        );
                     } else {
                         output.push(
                             // 1: id
@@ -3490,14 +3503,14 @@ const sockets = (() => {
                             let player = socket.player,
                                 camera = socket.camera;
                             // If nothing has changed since the last update, wait (approximately) until then to update
-                            let rightNow = room.lastCycle;      
+                            let rightNow = room.lastCycle;
                             if (rightNow === camera.lastUpdate) {
                                 socket.update(5 + room.cycleSpeed - util.time() + rightNow);
                                 return 1;
                             }
                             // ...elseeeeee...
                             // Update the record.
-                            camera.lastUpdate = rightNow;  
+                            camera.lastUpdate = rightNow;
                             // Get the socket status
                             socket.status.receiving++;
                             // Now prepare the data to emit
@@ -3506,30 +3519,30 @@ const sockets = (() => {
                             if (player.body != null) {
                                 // But I just died...
                                 if (player.body.isDead()) {
-                                    socket.status.deceased = true; 
+                                    socket.status.deceased = true;
                                     // Let the client know it died
                                     socket.talk('F', ...player.records());
                                     // Remove the body
-                                    player.body = null; 
-                                } 
+                                    player.body = null;
+                                }
                                 // I live!
                                 else if (player.body.photo) {
                                     // Update camera position and motion
                                     camera.x = player.body.photo.x;
-                                    camera.y = player.body.photo.y;  
+                                    camera.y = player.body.photo.y;
                                     camera.vx = player.body.photo.vx;
-                                    camera.vy = player.body.photo.vy;  
+                                    camera.vy = player.body.photo.vy;
                                     // Get what we should be able to see     
                                     setFov = player.body.fov;
                                     // Get our body id
                                     player.viewId = player.body.id;
                                 }
-                            } 
+                            }
                             if (player.body == null) { // u dead bro
                                 setFov = 2000;
                             }
                             // Smoothly transition view size
-                            camera.fov += Math.max((setFov - camera.fov) / 30, setFov - camera.fov);    
+                            camera.fov += Math.max((setFov - camera.fov) / 30, setFov - camera.fov);
                             // Update my stuff
                             x = camera.x; y = camera.y; fov = camera.fov;
                             // Find what the user can see.
@@ -3542,41 +3555,41 @@ const sockets = (() => {
                             }
                             // Look at our list of nearby entities and get their updates
                             let visible = nearby.map(function mapthevisiblerealm(e) {
-                                if (e.photo) { 
+                                if (e.photo) {
                                     if (
-                                        Math.abs(e.x - x) < fov/2 + 1.5*e.size &&
-                                        Math.abs(e.y - y) < fov/2 * (9/16) + 1.5*e.size
-                                    ) {   
+                                        Math.abs(e.x - x) < fov / 2 + 1.5 * e.size &&
+                                        Math.abs(e.y - y) < fov / 2 * (9 / 16) + 1.5 * e.size
+                                    ) {
                                         // Grab the photo
-                                        if (!e.flattenedPhoto) e.flattenedPhoto = flatten(e.photo); 
+                                        if (!e.flattenedPhoto) e.flattenedPhoto = flatten(e.photo);
                                         return perspective(e, player, e.flattenedPhoto);
-                                    } 
+                                    }
                                 }
                             }).filter(e => { return e; });
                             // Spread it for upload
                             let numberInView = visible.length,
                                 view = [];
-                            visible.forEach(e => { view.push(...e); });     
+                            visible.forEach(e => { view.push(...e); });
                             // Update the gui
                             player.gui.update();
                             // Send it to the player
                             socket.talk(
-                                'u', 
+                                'u',
                                 rightNow,
-                                camera.x, 
+                                camera.x,
                                 camera.y,
                                 setFov,
                                 camera.vx,
                                 camera.vy,
                                 ...player.gui.publish(),
-                                numberInView,            
+                                numberInView,
                                 ...view
                             );
                             // Queue up some for the front util.log if needed
                             if (socket.status.receiving < c.networkFrontlog) {
                                 socket.update(Math.max(
                                     0,
-                                    (1000 / c.networkUpdateFactor) - (camera.lastDowndate - camera.lastUpdate), 
+                                    (1000 / c.networkUpdateFactor) - (camera.lastDowndate - camera.lastUpdate),
                                     camera.ping / c.networkFrontlog
                                 ));
                             } else {
@@ -3807,197 +3820,197 @@ const sockets = (() => {
                 })()*/
                 // Util
                 let getBarColor = entry => {
-                  switch (entry.team) {
-                    case -100: return entry.color
-                    case -1: return 10
-                    case -2: return 11
-                    case -3: return 12
-                    case -4: return 15
-                    default:
-                      if (room.gameMode[0] === '2' || room.gameMode[0] === '3' || room.gameMode[0] === '4') return entry.color
-                      return 11
-                  }
+                    switch (entry.team) {
+                        case -100: return entry.color
+                        case -1: return 10
+                        case -2: return 11
+                        case -3: return 12
+                        case -4: return 15
+                        default:
+                            if (room.gameMode[0] === '2' || room.gameMode[0] === '3' || room.gameMode[0] === '4') return entry.color
+                            return 11
+                    }
                 }
                 // Delta Calculator
                 const Delta = class {
-                  constructor(dataLength, finder) {
-                    this.dataLength = dataLength
-                    this.finder = finder
-                    this.now = finder()
-                  }
-                  update() {
-                    let old = this.now
-                    let now = this.finder()
-                    this.now = now
+                    constructor(dataLength, finder) {
+                        this.dataLength = dataLength
+                        this.finder = finder
+                        this.now = finder()
+                    }
+                    update() {
+                        let old = this.now
+                        let now = this.finder()
+                        this.now = now
 
-                    let oldIndex = 0
-                    let nowIndex = 0
-                    let updates = []
-                    let updatesLength = 0
-                    let deletes = []
-                    let deletesLength = 0
+                        let oldIndex = 0
+                        let nowIndex = 0
+                        let updates = []
+                        let updatesLength = 0
+                        let deletes = []
+                        let deletesLength = 0
 
-                    while (oldIndex < old.length && nowIndex < now.length) {
-                      let oldElement = old[oldIndex]
-                      let nowElement = now[nowIndex]
+                        while (oldIndex < old.length && nowIndex < now.length) {
+                            let oldElement = old[oldIndex]
+                            let nowElement = now[nowIndex]
 
-                      if (oldElement.id === nowElement.id) { // update
-                        nowIndex++
-                        oldIndex++
+                            if (oldElement.id === nowElement.id) { // update
+                                nowIndex++
+                                oldIndex++
 
-                        let updated = false
-                        for (let i = 0; i < this.dataLength; i++)
-                          if (oldElement.data[i] !== nowElement.data[i]) {
-                            updated = true
-                            break
-                          }
+                                let updated = false
+                                for (let i = 0; i < this.dataLength; i++)
+                                    if (oldElement.data[i] !== nowElement.data[i]) {
+                                        updated = true
+                                        break
+                                    }
 
-                        if (updated) {
-                          updates.push(nowElement.id, ...nowElement.data)
-                          updatesLength++
+                                if (updated) {
+                                    updates.push(nowElement.id, ...nowElement.data)
+                                    updatesLength++
+                                }
+                            } else if (oldElement.id < nowElement.id) { // delete
+                                deletes.push(oldElement.id)
+                                deletesLength++
+                                oldIndex++
+                            } else { // create
+                                updates.push(nowElement.id, ...nowElement.data)
+                                updatesLength++
+                                nowIndex++
+                            }
                         }
-                      } else if (oldElement.id < nowElement.id) { // delete
-                        deletes.push(oldElement.id)
-                        deletesLength++
-                        oldIndex++
-                      } else { // create
-                        updates.push(nowElement.id, ...nowElement.data)
-                        updatesLength++
-                        nowIndex++
-                      }
-                    }
 
-                    for (let i = oldIndex; i < old.length; i++) {
-                      deletes.push(old[i].id)
-                      deletesLength++
-                    }
-                    for (let i = nowIndex; i < now.length; i++) {
-                      updates.push(now[i].id, ...now[i].data)
-                      updatesLength++
-                    }
+                        for (let i = oldIndex; i < old.length; i++) {
+                            deletes.push(old[i].id)
+                            deletesLength++
+                        }
+                        for (let i = nowIndex; i < now.length; i++) {
+                            updates.push(now[i].id, ...now[i].data)
+                            updatesLength++
+                        }
 
-                    let reset = [0, now.length]
-                    for (let element of now)
-                      reset.push(element.id, ...element.data)
-                    let update = [deletesLength, ...deletes, updatesLength, ...updates]
-                    return { reset, update }
-                  }
+                        let reset = [0, now.length]
+                        for (let element of now)
+                            reset.push(element.id, ...element.data)
+                        let update = [deletesLength, ...deletes, updatesLength, ...updates]
+                        return { reset, update }
+                    }
                 }
                 // Deltas
                 let minimapAll = new Delta(5, () => {
-                  let all = []
-                  for (let my of entities)
-                    if ((my.type === 'wall' && my.alpha > 0.2) ||
-                         my.type === 'miniboss' ||
-                        (my.type === 'tank' && my.lifetime))
-                      all.push({
-                        id: my.id,
-                        data: [
-                          my.type === 'wall' ? my.shape === 4 ? 2 : 1 : 0,
-                          util.clamp(Math.floor(256 * my.x / room.width), 0, 255),
-                          util.clamp(Math.floor(256 * my.y / room.height), 0, 255),
-                          my.color,
-                          Math.round(my.SIZE),
-                        ]
-                      })
-                  return all
+                    let all = []
+                    for (let my of entities)
+                        if ((my.type === 'wall' && my.alpha > 0.2) ||
+                            my.type === 'miniboss' ||
+                            (my.type === 'tank' && my.lifetime))
+                            all.push({
+                                id: my.id,
+                                data: [
+                                    my.type === 'wall' ? my.shape === 4 ? 2 : 1 : 0,
+                                    util.clamp(Math.floor(256 * my.x / room.width), 0, 255),
+                                    util.clamp(Math.floor(256 * my.y / room.height), 0, 255),
+                                    my.color,
+                                    Math.round(my.SIZE),
+                                ]
+                            })
+                    return all
                 })
                 let minimapTeams = [1, 2, 3, 4].map(team => new Delta(3, () => {
-                  let all = []
-                  for (let my of entities)
-                    if (my.type === 'tank' && my.team === -team && my.master === my && !my.lifetime)
-                      all.push({
-                        id: my.id,
-                        data: [
-                          util.clamp(Math.floor(256 * my.x / room.width), 0, 255),
-                          util.clamp(Math.floor(256 * my.y / room.height), 0, 255),
-                          my.color,
-                        ]
-                      })
-                  return all
+                    let all = []
+                    for (let my of entities)
+                        if (my.type === 'tank' && my.team === -team && my.master === my && !my.lifetime)
+                            all.push({
+                                id: my.id,
+                                data: [
+                                    util.clamp(Math.floor(256 * my.x / room.width), 0, 255),
+                                    util.clamp(Math.floor(256 * my.y / room.height), 0, 255),
+                                    my.color,
+                                ]
+                            })
+                    return all
                 }))
                 let leaderboard = new Delta(5, () => {
-                  let list = []
-                  for (let instance of entities)
-                    if (instance.settings.leaderboardable &&
-                        instance.settings.drawShape &&
-                       (instance.type === 'tank' || instance.killCount.solo || instance.killCount.assists)) {
-                      list.push(instance)
-                    }
+                    let list = []
+                    for (let instance of entities)
+                        if (instance.settings.leaderboardable &&
+                            instance.settings.drawShape &&
+                            (instance.type === 'tank' || instance.killCount.solo || instance.killCount.assists)) {
+                            list.push(instance)
+                        }
 
-                  let topTen = []
-                  for (let i = 0; i < 10 && list.length; i++) {
-                    let top, is = 0
-                    for (let j = 0; j < list.length; j++) {
-                      let val = list[j].skill.score
-                      if (val > is) {
-                        is = val
-                        top = j
-                      }
+                    let topTen = []
+                    for (let i = 0; i < 10 && list.length; i++) {
+                        let top, is = 0
+                        for (let j = 0; j < list.length; j++) {
+                            let val = list[j].skill.score
+                            if (val > is) {
+                                is = val
+                                top = j
+                            }
+                        }
+                        if (is === 0) break
+                        let entry = list[top]
+                        topTen.push({
+                            id: entry.id,
+                            data: [
+                                Math.round(entry.skill.score),
+                                entry.index,
+                                entry.name,
+                                entry.color,
+                                getBarColor(entry),
+                            ]
+                        })
+                        list.splice(top, 1)
                     }
-                    if (is === 0) break
-                    let entry = list[top]
-                    topTen.push({
-                      id: entry.id,
-                      data: [
-                        Math.round(entry.skill.score),
-                        entry.index,
-                        entry.name,
-                        entry.color,
-                        getBarColor(entry),
-                      ]
-                    })
-                    list.splice(top, 1)
-                  }
-                  room.topPlayerID = topTen.length ? topTen[0].id : -1
+                    room.topPlayerID = topTen.length ? topTen[0].id : -1
 
-                  return topTen.sort((a, b) => a.id - b.id)
+                    return topTen.sort((a, b) => a.id - b.id)
                 })
 
                 // Periodically give out updates
                 let subscribers = []
                 setInterval(() => {
-                  logs.minimap.set()
-                  let minimapUpdate = minimapAll.update()
-                  let minimapTeamUpdates = minimapTeams.map(r => r.update())
-                  let leaderboardUpdate = leaderboard.update()
-                  for (let socket of subscribers) {
-                    if (!socket.status.hasSpawned) continue
-                    let team = minimapTeamUpdates[socket.player.team - 1]
-                    if (socket.status.needsNewBroadcast) {
-                      socket.talk('b',
-                        ...minimapUpdate.reset,
-                        ...(team ? team.reset : [0, 0]),
-                        ...(socket.anon ? [0, 0] : leaderboardUpdate.reset))
-                      socket.status.needsNewBroadcast = false
-                    } else {
-                      socket.talk('b',
-                        ...minimapUpdate.update,
-                        ...(team ? team.update : [0, 0]),
-                        ...(socket.anon ? [0, 0] : leaderboardUpdate.update))
+                    logs.minimap.set()
+                    let minimapUpdate = minimapAll.update()
+                    let minimapTeamUpdates = minimapTeams.map(r => r.update())
+                    let leaderboardUpdate = leaderboard.update()
+                    for (let socket of subscribers) {
+                        if (!socket.status.hasSpawned) continue
+                        let team = minimapTeamUpdates[socket.player.team - 1]
+                        if (socket.status.needsNewBroadcast) {
+                            socket.talk('b',
+                                ...minimapUpdate.reset,
+                                ...(team ? team.reset : [0, 0]),
+                                ...(socket.anon ? [0, 0] : leaderboardUpdate.reset))
+                            socket.status.needsNewBroadcast = false
+                        } else {
+                            socket.talk('b',
+                                ...minimapUpdate.update,
+                                ...(team ? team.update : [0, 0]),
+                                ...(socket.anon ? [0, 0] : leaderboardUpdate.update))
+                        }
                     }
-                  }
 
-                  logs.minimap.mark()
+                    logs.minimap.mark()
 
-                  let time = util.time()
-                  for (let socket of clients) {
-                    if (socket.timeout.check(time))
-                      socket.lastWords('K')
-                    if (time - socket.statuslastHeartbeat > c.maxHeartbeatInterval)
-                      socket.kick('Lost heartbeat.')
-                  }
+                    let time = util.time()
+                    for (let socket of clients) {
+                        if (socket.timeout.check(time))
+                            socket.lastWords('K')
+                        if (time - socket.statuslastHeartbeat > c.maxHeartbeatInterval)
+                            socket.kick('Lost heartbeat.')
+                    }
                 }, 250)
 
                 return {
-                  subscribe(socket) {
-                    subscribers.push(socket)
-                  },
-                  unsubscribe(socket) {
-                    let i = subscribers.indexOf(socket)
-                    if (i !== -1)
-                      util.remove(subscribers, i)
-                  },
+                    subscribe(socket) {
+                        subscribers.push(socket)
+                    },
+                    unsubscribe(socket) {
+                        let i = subscribers.indexOf(socket)
+                        if (i !== -1)
+                            util.remove(subscribers, i)
+                    },
                 }
             })()
             // Build the returned function
@@ -4025,9 +4038,9 @@ const sockets = (() => {
                     requests: 0,
                     hasSpawned: false,
                     needsFullMap: true,
-                    needsNewBroadcast: true, 
+                    needsNewBroadcast: true,
                     lastHeartbeat: util.time(),
-                };  
+                };
                 // Set up loops
                 socket.loops = (() => {
                     let nextUpdateCall = null; // has to be started manually
@@ -4036,7 +4049,7 @@ const sockets = (() => {
                     // Return the loop methods
                     return {
                         setUpdate: timeout => {
-                            nextUpdateCall = timeout; 
+                            nextUpdateCall = timeout;
                         },
                         cancelUpdate: () => {
                             clearTimeout(nextUpdateCall);
@@ -4064,14 +4077,14 @@ const sockets = (() => {
                 // Put the fundamental functions in the socket
                 socket.kick = reason => kick(socket, reason);
                 socket.talk = (...message) => {
-                    if (socket.readyState === socket.OPEN) { 
-                        socket.send(protocol.encode(message), { binary: true, }); 
-                    } 
+                    if (socket.readyState === socket.OPEN) {
+                        socket.send(protocol.encode(message), { binary: true, });
+                    }
                 };
                 socket.lastWords = (...message) => {
-                    if (socket.readyState === socket.OPEN) { 
+                    if (socket.readyState === socket.OPEN) {
                         socket.send(protocol.encode(message), { binary: true, }, () => setTimeout(() => socket.terminate(), 1000));
-                    } 
+                    }
                 };
                 socket.on('message', message => incoming(message, socket));
                 socket.on('close', () => { socket.loops.terminate(); close(socket); });
@@ -4081,7 +4094,7 @@ const sockets = (() => {
                 // And make an update
                 socket.update = time => {
                     socket.loops.cancelUpdate();
-                    socket.loops.setUpdate(setTimeout(() => { socket.view.gazeUpon(); }, time)); 
+                    socket.loops.setUpdate(setTimeout(() => { socket.view.gazeUpon(); }, time));
                 };
                 // Log it
                 clients.push(socket);
@@ -4134,7 +4147,7 @@ var gameloop = (() => {
                 } else { strike2 = true; }
                 item1 = { x: my.x + my.m_x, y: my.y + my.m_y, };
                 item2 = { x: n.x + n.m_x, y: n.y + n.m_y, };
-                dist = util.getDistance(item1, item2); 
+                dist = util.getDistance(item1, item2);
             }
         }
         function reflectcollide(wall, bounce) {
@@ -4170,7 +4183,7 @@ var gameloop = (() => {
                     tmin = 1 - tock,
                     tmax = 1,
                     A = Math.pow(delt.x, 2) + Math.pow(delt.y, 2),
-                    B = 2*delt.x*diff.x + 2*delt.y*diff.y,
+                    B = 2 * delt.x * diff.x + 2 * delt.y * diff.y,
                     C = Math.pow(diff.x, 2) + Math.pow(diff.y, 2) - Math.pow(combinedRadius, 2),
                     det = B * B - (4 * A * C),
                     t;
@@ -4181,8 +4194,8 @@ var gameloop = (() => {
                         goahead = true;
                     }
                 } else {
-                    let t1 = (-B - Math.sqrt(det)) / (2*A),
-                        t2 = (-B + Math.sqrt(det)) / (2*A);                
+                    let t1 = (-B - Math.sqrt(det)) / (2 * A),
+                        t2 = (-B + Math.sqrt(det)) / (2 * A);
                     if (t1 < tmin || t1 > tmax) { // 1 is out of range
                         if (t2 < tmin || t2 > tmax) { // 2 is out of range;
                             t = false;
@@ -4214,7 +4227,7 @@ var gameloop = (() => {
 
                         // Update things
                         diff = new Vector(my.x - n.x, my.y - n.y);
-                        dir = new Vector((n.x - my.x) / diff.length, (n.y - my.y) / diff.length);            
+                        dir = new Vector((n.x - my.x) / diff.length, (n.y - my.y) / diff.length);
                         component = Math.max(0, dir.x * delt.x + dir.y * delt.y);
                     }
                     let componentNorm = component / delt.length;
@@ -4226,7 +4239,7 @@ var gameloop = (() => {
                             _n: 1,
                         },
                         accelerationFactor = (delt.length) ? (
-                            (combinedRadius / 4) / (Math.floor(combinedRadius / delt.length) + 1) 
+                            (combinedRadius / 4) / (Math.floor(combinedRadius / delt.length) + 1)
                         ) : (
                             0.001
                         ),
@@ -4236,7 +4249,7 @@ var gameloop = (() => {
                         },
                         combinedDepth = {
                             up: depth._me * depth._n,
-                            down: (1-depth._me) * (1-depth._n),
+                            down: (1 - depth._me) * (1 - depth._n),
                         },
                         pen = {
                             _me: {
@@ -4254,8 +4267,8 @@ var gameloop = (() => {
                         };
                     if (doDamage) {
                         let speedFactor = { // Avoid NaNs and infinities
-                            _me: (my.maxSpeed) ? ( Math.pow(motion._me.length/my.maxSpeed, 0.25)  ) : ( 1 ),
-                            _n: (n.maxSpeed) ? ( Math.pow(motion._n.length/n.maxSpeed, 0.25) ) : ( 1 ),
+                            _me: (my.maxSpeed) ? (Math.pow(motion._me.length / my.maxSpeed, 0.25)) : (1),
+                            _n: (n.maxSpeed) ? (Math.pow(motion._n.length / n.maxSpeed, 0.25)) : (1),
                         };
 
                         /********** DO DAMAGE *********/
@@ -4264,23 +4277,23 @@ var gameloop = (() => {
                             bail = my.necro(n);
                         } else if (my.shape === n.shape && n.settings.isNecromancer && my.type === 'food') {
                             bail = n.necro(my);
-                        } 
+                        }
                         if (!bail) {
                             // Calculate base damage
                             let resistDiff = my.health.resist - n.health.resist,
                                 damage = {
-                                    _me: 
-                                        c.DAMAGE_CONSTANT * 
-                                        my.damage * 
-                                        (1 + resistDiff) * 
+                                    _me:
+                                        c.DAMAGE_CONSTANT *
+                                        my.damage *
+                                        (1 + resistDiff) *
                                         (1 + n.heteroMultiplier * (my.settings.damageClass === n.settings.damageClass)) *
-                                        ((my.settings.buffVsFood && n.settings.damageType === 1) ? 3 : 1 ) *
+                                        ((my.settings.buffVsFood && n.settings.damageType === 1) ? 3 : 1) *
                                         my.damageMultiplier() *
                                         Math.min(2, Math.max(speedFactor._me, 1) * speedFactor._me),
-                                    _n: 
-                                        c.DAMAGE_CONSTANT * 
-                                        n.damage * 
-                                        (1 - resistDiff) * 
+                                    _n:
+                                        c.DAMAGE_CONSTANT *
+                                        n.damage *
+                                        (1 - resistDiff) *
                                         (1 + my.heteroMultiplier * (my.settings.damageClass === n.settings.damageClass)) *
                                         ((n.settings.buffVsFood && my.settings.damageType === 1) ? 3 : 1) *
                                         n.damageMultiplier() *
@@ -4297,23 +4310,23 @@ var gameloop = (() => {
                                 damage._me *=
                                     accelerationFactor *
                                     (1 + (componentNorm - 1) * (1 - depth._n) / my.penetration) *
-                                    (1 + pen._n.sqrt * depth._n - depth._n) / pen._n.sqrt; 
+                                    (1 + pen._n.sqrt * depth._n - depth._n) / pen._n.sqrt;
                             }
                             if (n.settings.damageEffects) {
                                 damage._n *=
                                     accelerationFactor *
                                     (1 + (componentNorm - 1) * (1 - depth._me) / n.penetration) *
-                                    (1 + pen._me.sqrt * depth._me - depth._me) / pen._me.sqrt; 
+                                    (1 + pen._me.sqrt * depth._me - depth._me) / pen._me.sqrt;
                             }
                             // Find out if you'll die in this cycle, and if so how much damage you are able to do to the other target
                             let damageToApply = {
                                 _me: damage._me,
                                 _n: damage._n,
                             };
-                            if (n.shield.max) { 
+                            if (n.shield.max) {
                                 damageToApply._me -= n.shield.getDamage(damageToApply._me);
                             }
-                            if (my.shield.max) { 
+                            if (my.shield.max) {
                                 damageToApply._n -= my.shield.getDamage(damageToApply._n);
                             }
                             let stuff = my.health.getDamage(damageToApply._n, false);
@@ -4321,14 +4334,14 @@ var gameloop = (() => {
                             stuff = n.health.getDamage(damageToApply._me, false);
                             deathFactor._n = (stuff > n.health.amount) ? n.health.amount / stuff : 1;
 
-                                reductionFactor = Math.min(deathFactor._me, deathFactor._n);
+                            reductionFactor = Math.min(deathFactor._me, deathFactor._n);
 
                             // Now apply it
                             my.damageRecieved += damage._n * deathFactor._n;
                             n.damageRecieved += damage._me * deathFactor._me;
                         }
                     }
-                    /************* DO MOTION ***********/    
+                    /************* DO MOTION ***********/
                     if (nIsFirmCollide < 0) {
                         nIsFirmCollide *= -0.5;
                         my.accel.x -= nIsFirmCollide * component * dir.x;
@@ -4339,20 +4352,20 @@ var gameloop = (() => {
                         n.accel.x += nIsFirmCollide * (component * dir.x + combinedDepth.up);
                         n.accel.y += nIsFirmCollide * (component * dir.y + combinedDepth.up);
                     } else {
-                         // Calculate the impulse of the collision
-                        let elasticity = 2 - 4 * Math.atan(my.penetration * n.penetration) / Math.PI; 
+                        // Calculate the impulse of the collision
+                        let elasticity = 2 - 4 * Math.atan(my.penetration * n.penetration) / Math.PI;
                         if (doInelastic && my.settings.motionEffects && n.settings.motionEffects) {
                             elasticity *= savedHealthRatio._me / pen._me.sqrt + savedHealthRatio._n / pen._n.sqrt;
                         } else {
                             elasticity *= 2;
                         }
                         let spring = 2 * Math.sqrt(savedHealthRatio._me * savedHealthRatio._n) / roomSpeed,
-                            elasticImpulse = 
-                                Math.pow(combinedDepth.down, 2) * 
-                                elasticity * component * 
+                            elasticImpulse =
+                                Math.pow(combinedDepth.down, 2) *
+                                elasticity * component *
                                 my.mass * n.mass / (my.mass + n.mass),
-                            springImpulse = 
-                                c.KNOCKBACK_CONSTANT * spring * combinedDepth.up,   
+                            springImpulse =
+                                c.KNOCKBACK_CONSTANT * spring * combinedDepth.up,
                             impulse = -(elasticImpulse + springImpulse) * (1 - my.intangibility) * (1 - n.intangibility),
                             force = {
                                 x: impulse * dir.x,
@@ -4375,7 +4388,7 @@ var gameloop = (() => {
         return collision => {
             // Pull the two objects from the collision grid      
             let instance = collision[0],
-                other = collision[1];   
+                other = collision[1];
             // Check for ghosts...
             if (other.isGhost) {
                 util.error('GHOST FOUND');
@@ -4403,48 +4416,48 @@ var gameloop = (() => {
             if (!instance.activation.check() && !other.activation.check()) { util.warn('Tried to collide with an inactive instance.'); return 0; }
             // Handle walls
             if (instance.type === 'wall' || other.type === 'wall') {
-                let a = (instance.type === 'bullet' || other.type === 'bullet') ? 
-                    1 + 10 / (Math.max(instance.velocity.length, other.velocity.length) + 10) : 
+                let a = (instance.type === 'bullet' || other.type === 'bullet') ?
+                    1 + 10 / (Math.max(instance.velocity.length, other.velocity.length) + 10) :
                     1;
                 if (instance.type === 'wall') advancedcollide(instance, other, false, false, a);
                 else advancedcollide(other, instance, false, false, a);
             } else
-            // If they can firm collide, do that
-            if ((instance.type === 'crasher' && other.type === 'food') || (other.type === 'crasher' && instance.type === 'food')) {
-                firmcollide(instance, other);
-            } else
-            // Otherwise, collide normally if they're from different teams
-            if (instance.team !== other.team) {
-                advancedcollide(instance, other, true, true);
-            } else 
-            // Ignore them if either has asked to be
-            if (instance.settings.hitsOwnType == 'never' || other.settings.hitsOwnType == 'never') {
-                // Do jack                    
-            } else 
-            // Standard collision resolution
-            if (instance.settings.hitsOwnType === other.settings.hitsOwnType) {
-                switch (instance.settings.hitsOwnType) {
-                case 'push': advancedcollide(instance, other, false, false); break;
-                case 'hard': firmcollide(instance, other); break;
-                case 'hardWithBuffer': firmcollide(instance, other, 30); break;
-                case 'repel': simplecollide(instance, other); break;
-                }
-            }     
+                // If they can firm collide, do that
+                if ((instance.type === 'crasher' && other.type === 'food') || (other.type === 'crasher' && instance.type === 'food')) {
+                    firmcollide(instance, other);
+                } else
+                    // Otherwise, collide normally if they're from different teams
+                    if (instance.team !== other.team) {
+                        advancedcollide(instance, other, true, true);
+                    } else
+                        // Ignore them if either has asked to be
+                        if (instance.settings.hitsOwnType == 'never' || other.settings.hitsOwnType == 'never') {
+                            // Do jack                    
+                        } else
+                            // Standard collision resolution
+                            if (instance.settings.hitsOwnType === other.settings.hitsOwnType) {
+                                switch (instance.settings.hitsOwnType) {
+                                    case 'push': advancedcollide(instance, other, false, false); break;
+                                    case 'hard': firmcollide(instance, other); break;
+                                    case 'hardWithBuffer': firmcollide(instance, other, 30); break;
+                                    case 'repel': simplecollide(instance, other); break;
+                                }
+                            }
         };
     })();
     // Living stuff
     function entitiesactivationloop(my) {
         // Update collisions.
-        my.collisionArray = []; 
+        my.collisionArray = [];
         // Activation
         my.activation.update();
-        my.updateAABB(my.activation.check()); 
+        my.updateAABB(my.activation.check());
     }
-    function entitiesliveloop (my) {
+    function entitiesliveloop(my) {
         // Consider death.  
         if (my.contemplationOfMortality()) my.destroy();
         else {
-            if (my.bond == null) { 
+            if (my.bond == null) {
                 // Resolve the physical behavior from the last collision cycle.
                 logs.physics.set();
                 my.physics();
@@ -4465,7 +4478,7 @@ var gameloop = (() => {
             }
         }
         // Update collisions.
-        my.collisionArray = []; 
+        my.collisionArray = [];
     }
     let time;
     // Return the loop function
@@ -4473,7 +4486,7 @@ var gameloop = (() => {
         logs.loops.tally();
         logs.master.set();
         logs.activation.set();
-            entities.forEach(e => entitiesactivationloop(e));
+        entities.forEach(e => entitiesactivationloop(e));
         logs.activation.mark();
         // Do collisions
         logs.collide.set();
@@ -4486,7 +4499,7 @@ var gameloop = (() => {
         logs.collide.mark();
         // Do entities life
         logs.entities.set();
-            entities.forEach(e => entitiesliveloop(e));
+        entities.forEach(e => entitiesliveloop(e));
         logs.entities.mark();
         logs.master.mark();
         // Remove dead entities
@@ -4505,25 +4518,26 @@ var maintainloop = (() => {
         function placeRoid(type, entityClass) {
             let x = 0;
             let position;
-            do { position = room.randomType(type); 
+            do {
+                position = room.randomType(type);
                 x++;
-                if (x>200) { util.warn("Could not place some roids."); return 0; }
+                if (x > 200) { util.warn("Could not place some roids."); return 0; }
             } while (dirtyCheck(position, 10 + entityClass.SIZE));
             let o = new Entity(position);
-                o.define(entityClass);
-                o.team = -101;
-                o.facing = ran.randomAngle();
-                o.protect();
-                o.life();
+            o.define(entityClass);
+            o.team = -101;
+            o.facing = ran.randomAngle();
+            o.protect();
+            o.life();
         }
         // Start placing them
         let roidcount = room.roid.length * room.width * room.height / room.xgrid / room.ygrid / 50000 / 1.5;
         let rockcount = room.rock.length * room.width * room.height / room.xgrid / room.ygrid / 250000 / 1.5;
         let count = 0;
-        for (let i=Math.ceil(roidcount); i; i--) { count++; placeRoid('roid', Class.obstacle); }
-        for (let i=Math.ceil(roidcount * 0.3); i; i--) { count++; placeRoid('roid', Class.babyObstacle); }
-        for (let i=Math.ceil(rockcount * 0.8); i; i--) { count++; placeRoid('rock', Class.obstacle); }
-        for (let i=Math.ceil(rockcount * 0.5); i; i--) { count++; placeRoid('rock', Class.babyObstacle); }
+        for (let i = Math.ceil(roidcount); i; i--) { count++; placeRoid('roid', Class.obstacle); }
+        for (let i = Math.ceil(roidcount * 0.3); i; i--) { count++; placeRoid('roid', Class.babyObstacle); }
+        for (let i = Math.ceil(rockcount * 0.8); i; i--) { count++; placeRoid('rock', Class.obstacle); }
+        for (let i = Math.ceil(rockcount * 0.5); i; i--) { count++; placeRoid('rock', Class.babyObstacle); }
         util.log('Placing ' + count + ' obstacles!');
     }
     placeRoids();
@@ -4542,11 +4556,11 @@ var maintainloop = (() => {
                 let spot, m = 0;
                 do {
                     spot = room.randomType(loc); m++;
-                } while (dirtyCheck(spot, 500) && m<30);
+                } while (dirtyCheck(spot, 500) && m < 30);
                 let o = new Entity(spot);
-                    o.define(ran.choose(bois));
-                    o.team = -100;
-                    o.name = names[i++];
+                o.define(ran.choose(bois));
+                o.team = -100;
+                o.name = names[i++];
             };
             return {
                 prepareToSpawn: (classArray, number, nameClass, typeOfLocation = 'norm') => {
@@ -4557,17 +4571,17 @@ var maintainloop = (() => {
                     i = 0;
                     if (n === 1) {
                         begin = 'A visitor is coming.';
-                        arrival = names[0] + ' has arrived.'; 
+                        arrival = names[0] + ' has arrived.';
                     } else {
                         begin = 'Visitors are coming.';
                         arrival = '';
-                        for (let i=0; i<n-2; i++) arrival += names[i] + ', ';
-                        arrival += names[n-2] + ' and ' + names[n-1] + ' have arrived.';
+                        for (let i = 0; i < n - 2; i++) arrival += names[i] + ', ';
+                        arrival += names[n - 2] + ' and ' + names[n - 1] + ' have arrived.';
                     }
                 },
                 spawn: () => {
                     sockets.broadcast(begin);
-                    for (let i=0; i<n; i++) {
+                    for (let i = 0; i < n; i++) {
                         setTimeout(spawn, ran.randomRange(3500, 5000));
                     }
                     // Wrap things up.
@@ -4582,11 +4596,11 @@ var maintainloop = (() => {
                 timer = 0;
                 let choice = [];
                 switch (ran.chooseChance(40, 1)) {
-                    case 0: 
+                    case 0:
                         choice = [[Class.elite_destroyer], 2, 'a', 'nest'];
                         break;
-                    case 1: 
-                        choice = [[Class.palisade], 1, 'castle', 'norm']; 
+                    case 1:
+                        choice = [[Class.palisade], 1, 'castle', 'norm'];
                         sockets.broadcast('A strange trembling...');
                         break;
                 }
@@ -4597,27 +4611,27 @@ var maintainloop = (() => {
         };
     })();
     let spawnCrasher = census => {
-        if (ran.chance(1 -  0.5 * census.crasher / room.maxFood / room.nestFoodAmount)) {
+        if (ran.chance(1 - 0.5 * census.crasher / room.maxFood / room.nestFoodAmount)) {
             let spot, i = 30;
             do { spot = room.randomType('nest'); i--; if (!i) return 0; } while (dirtyCheck(spot, 100));
             let type = (ran.dice(80)) ? ran.choose([Class.sentryGun, Class.sentrySwarm, Class.sentryTrap]) : Class.crasher;
             let o = new Entity(spot);
-                o.define(type);
-                o.team = -100;
+            o.define(type);
+            o.team = -100;
         }
     };
     // The NPC function
     let makenpcs = (() => {
         // Make base protectors if needed.
-            /*let f = (loc, team) => { 
-                let o = new Entity(loc);
-                    o.define(Class.baseProtector);
-                    o.team = -team;
-                    o.color = [10, 11, 12, 15][team-1];
-            };
-            for (let i=1; i<5; i++) {
-                room['bas' + i].forEach((loc) => { f(loc, i); }); 
-            }*/
+        /*let f = (loc, team) => { 
+            let o = new Entity(loc);
+                o.define(Class.baseProtector);
+                o.team = -team;
+                o.color = [10, 11, 12, 15][team-1];
+        };
+        for (let i=1; i<5; i++) {
+            room['bas' + i].forEach((loc) => { f(loc, i); }); 
+        }*/
         // Return the spawning function
         let bots = [];
         return () => {
@@ -4625,13 +4639,13 @@ var maintainloop = (() => {
                 crasher: 0,
                 miniboss: 0,
                 tank: 0,
-            };    
+            };
             let npcs = entities.map(function npcCensus(instance) {
                 if (census[instance.type] != null) {
                     census[instance.type]++;
                     return instance;
                 }
-            }).filter(e => { return e; });    
+            }).filter(e => { return e; });
             // Spawning
             spawnCrasher(census);
             spawnBosses(census);
@@ -4663,7 +4677,7 @@ var maintainloop = (() => {
         let food = [], foodSpawners = [];
         // The two essential functions
         function getFoodClass(level) {
-            let a = { };
+            let a = {};
             switch (level) {
                 case 0: a = Class.egg; break;
                 case 1: a = Class.square; break;
@@ -4671,7 +4685,7 @@ var maintainloop = (() => {
                 case 3: a = Class.pentagon; break;
                 case 4: a = Class.bigPentagon; break;
                 case 5: a = Class.hugePentagon; break;
-                default: throw('bad food level');
+                default: throw ('bad food level');
             }
             if (a !== {}) {
                 a.BODY.ACCELERATION = 0.015 / (a.FOOD.LEVEL + 1);
@@ -4679,12 +4693,12 @@ var maintainloop = (() => {
             return a;
         }
         let placeNewFood = (position, scatter, level, allowInNest = false) => {
-            let o = nearest(food, position); 
+            let o = nearest(food, position);
             let mitosis = false;
             let seed = false;
             // Find the nearest food and determine if we can do anything with it
             if (o != null) {
-                for (let i=50; i>0; i--) {
+                for (let i = 50; i > 0; i--) {
                     if (scatter == -1 || util.getDistance(position, o) < scatter) {
                         if (ran.dice((o.foodLevel + 1) * (o.foodLevel + 1))) {
                             mitosis = true; break;
@@ -4700,13 +4714,13 @@ var maintainloop = (() => {
                 if (o != null && (mitosis || seed) && room.isIn('nest', o) === allowInNest) {
                     let levelToMake = (mitosis) ? o.foodLevel : level,
                         place = {
-                        x: o.x + o.size * Math.cos(o.facing),
-                        y: o.y + o.size * Math.sin(o.facing),
-                    };
+                            x: o.x + o.size * Math.cos(o.facing),
+                            y: o.y + o.size * Math.sin(o.facing),
+                        };
                     let new_o = new Entity(place);
-                        new_o.define(getFoodClass(levelToMake));
-                        new_o.team = -100;
-                    new_o.facing = o.facing + ran.randomRange(Math.PI/2, Math.PI);
+                    new_o.define(getFoodClass(levelToMake));
+                    new_o.team = -100;
+                    new_o.facing = o.facing + ran.randomRange(Math.PI / 2, Math.PI);
                     food.push(new_o);
                     return new_o;
                 }
@@ -4714,8 +4728,8 @@ var maintainloop = (() => {
                 else if (room.isIn('nest', position) === allowInNest) {
                     if (!dirtyCheck(position, 20)) {
                         o = new Entity(position);
-                            o.define(getFoodClass(level));
-                            o.team = -100;
+                        o.define(getFoodClass(level));
+                        o.team = -100;
                         o.facing = ran.randomAngle();
                         food.push(o);
                         return o;
@@ -4726,26 +4740,26 @@ var maintainloop = (() => {
         // Define foodspawners
         class FoodSpawner {
             constructor() {
-                this.foodToMake = Math.ceil(Math.abs(ran.gauss(0, room.scale.linear*80)));
+                this.foodToMake = Math.ceil(Math.abs(ran.gauss(0, room.scale.linear * 80)));
                 this.size = Math.sqrt(this.foodToMake) * 25;
-            
+
                 // Determine where we ought to go
                 let position = {}; let o;
-                do { 
-                    position = room.gaussRing(1/3, 20); 
+                do {
+                    position = room.gaussRing(1 / 3, 20);
                     o = placeNewFood(position, this.size, 0);
                 } while (o == null);
-        
+
                 // Produce a few more
-                for (let i=Math.ceil(Math.abs(ran.gauss(0, 4))); i<=0; i--) {
+                for (let i = Math.ceil(Math.abs(ran.gauss(0, 4))); i <= 0; i--) {
                     placeNewFood(o, this.size, 0);
                 }
-        
+
                 // Set location
                 this.x = o.x;
                 this.y = o.y;
                 //util.debug('FoodSpawner placed at ('+this.x+', '+this.y+'). Set to produce '+this.foodToMake+' food.');
-            }        
+            }
             rot() {
                 if (--this.foodToMake < 0) {
                     //util.debug('FoodSpawner rotted, respawning.');
@@ -4763,14 +4777,14 @@ var maintainloop = (() => {
         let makeGroupedFood = () => { // Create grouped food
             // Choose a location around a spawner
             let spawner = foodSpawners[ran.irandom(foodSpawners.length - 1)],
-                bubble = ran.gaussRing(spawner.size, 1/4);
+                bubble = ran.gaussRing(spawner.size, 1 / 4);
             placeNewFood({ x: spawner.x + bubble.x, y: spawner.y + bubble.y, }, -1, 0);
             spawner.rot();
         };
         let makeDistributedFood = () => { // Distribute food everywhere
             //util.debug('Creating new distributed food.');
             let spot = {};
-            do { spot = room.gaussRing(1/2, 2); } while (room.isInNorm(spot));
+            do { spot = room.gaussRing(1 / 2, 2); } while (room.isInNorm(spot));
             placeNewFood(spot, 0.01 * room.width, 0);
         };
         let makeCornerFood = () => { // Distribute food in the corners
@@ -4811,41 +4825,42 @@ var maintainloop = (() => {
                 try {
                     if (instance.type === 'tank') {
                         census.tank++;
-                    } else if (instance.foodLevel > -1) { 
+                    } else if (instance.foodLevel > -1) {
                         if (room.isIn('nest', { x: instance.x, y: instance.y, })) { censusNest.sum++; censusNest[instance.foodLevel]++; }
                         else { census.sum++; census[instance.foodLevel]++; }
                         return instance;
                     }
                 } catch (err) { util.error(instance.label); util.error(err); instance.kill(); }
-            }).filter(e => { return e; });     
+            }).filter(e => { return e; });
             // Sum it up   
-            let maxFood = 1 + room.maxFood + 15 * census.tank;      
+            let maxFood = 1 + room.maxFood + 15 * census.tank;
             let maxNestFood = 1 + room.maxFood * room.nestFoodAmount;
             let foodAmount = census.sum;
             let nestFoodAmount = censusNest.sum;
             /*********** ROT OLD SPAWNERS **********/
-            foodSpawners.forEach(spawner => { if (ran.chance(1 - foodAmount/maxFood)) spawner.rot(); });
+            foodSpawners.forEach(spawner => { if (ran.chance(1 - foodAmount / maxFood)) spawner.rot(); });
             /************** MAKE FOOD **************/
             while (ran.chance(0.8 * (1 - foodAmount * foodAmount / maxFood / maxFood))) {
                 switch (ran.chooseChance(10, 2, 1)) {
-                case 0: makeGroupedFood(); break;
-                case 1: makeDistributedFood(); break;
-                case 2: makeCornerFood(); break;
+                    case 0: makeGroupedFood(); break;
+                    case 1: makeDistributedFood(); break;
+                    case 2: makeCornerFood(); break;
                 }
-            } 
+            }
             while (ran.chance(0.5 * (1 - nestFoodAmount * nestFoodAmount / maxNestFood / maxNestFood))) makeNestFood();
             /************* UPGRADE FOOD ************/
             if (!food.length) return 0;
-            for (let i=Math.ceil(food.length / 100); i>0; i--) {
+            for (let i = Math.ceil(food.length / 100); i > 0; i--) {
                 let o = food[ran.irandom(food.length - 1)], // A random food instance
                     oldId = -1000,
                     overflow, location;
                 // Bounce 6 times
-                for (let j=0; j<6; j++) { 
+                for (let j = 0; j < 6; j++) {
                     overflow = 10;
                     // Find the nearest one that's not the last one
-                    do { o = nearest(food, { x: ran.gauss(o.x, 30), y: ran.gauss(o.y, 30), });
-                    } while (o.id === oldId && --overflow);        
+                    do {
+                        o = nearest(food, { x: ran.gauss(o.x, 30), y: ran.gauss(o.y, 30), });
+                    } while (o.id === oldId && --overflow);
                     if (!overflow) continue;
                     // Configure for the nest if needed
                     let proportions = c.FOOD,
@@ -4871,8 +4886,8 @@ var maintainloop = (() => {
     // Define food and food spawning
     return () => {
         // Do stuff
-        makenpcs();      
-        makefood(); 
+        makenpcs();
+        makefood();
         // Regen health and update the grid
         entities.forEach(instance => {
             if (instance.shield.max) {
@@ -4900,10 +4915,10 @@ var speedcheckloop = (() => {
         let sum = logs.master.record();
         let loops = logs.loops.count(),
             active = logs.entities.count();
-        global.fps = (1000/sum).toFixed(2);
-        if (sum > 1000 / roomSpeed / 30) { 
+        global.fps = (1000 / sum).toFixed(2);
+        if (sum > 1000 / roomSpeed / 30) {
             //fails++;
-            util.warn('~~ LOOPS: ' + loops + '. ENTITY #: ' + entities.length + '//' + Math.round(active/loops) + '. VIEW #: ' + views.length + '. BACKLOGGED :: ' + (sum * roomSpeed * 3).toFixed(3) + '%! ~~');
+            util.warn('~~ LOOPS: ' + loops + '. ENTITY #: ' + entities.length + '//' + Math.round(active / loops) + '. VIEW #: ' + views.length + '. BACKLOGGED :: ' + (sum * roomSpeed * 3).toFixed(3) + '%! ~~');
             util.warn('Total activation time: ' + activationtime);
             util.warn('Total collision time: ' + collidetime);
             util.warn('Total cycle time: ' + movetime);
@@ -4923,40 +4938,33 @@ var speedcheckloop = (() => {
     };
 })();
 
-/** BUILD THE SERVERS **/  
-// Turn the server on
-let server = http.createServer((req, res) => {
-  let { pathname } = url.parse(req.url)
-  switch (pathname) {
-    case '/':
-      res.writeHead(200)
-      res.end(`<!DOCTYPE html><h3>Arras</h3><button onclick="location.href = 'http://arras.io/#host=' + location.host">Open</button>`)
-    break
-    case '/mockups.json':
-      res.setHeader('Access-Control-Allow-Origin', '*')
-      res.writeHead(200)
-      res.end(mockupJsonData)
-    break
-    default:
-      res.writeHead(404)
-      res.end()
-  }
-})
-
-let websockets = (() => {
-    // Configure the websocketserver
-    let config = { server: server }
-        server.listen(process.env.PORT || 8080, function httpListening() {
-            util.log((new Date()) + ". Joint HTTP+Websocket server turned on, listening on port "+server.address().port + ".")
+const app = (function (port) {
+    const express = require("express");
+    const minify = require("express-minify");
+    //const shrinkRay = require('shrink-ray-current');
+    const cors = require("cors");
+    const expressWS = require("express-ws");
+    const server = express();
+    expressWS(server);
+    server.use(minify());
+    server.use(cors());
+    server.use(express.static("client"));
+    server.use(express.json());
+    /*app.use(shrinkRay({
+        filter: (function shouldCompress(req, res) {
+            if (req.headers['x-no-compression']) return false;
+            return shrinkRay.filter(req, res);
         })
-    /*if (c.servesStatic) {
-    } else {
-        config.port = 8080; 
-        util.log((new Date()) + 'Websocket server turned on, listening on port ' + 8080 + '.'); 
-    }*/
-    // Build it
-    return new WebSocket.Server(config)
-})().on('connection', sockets.connect); 
+    }));*/
+    server.get("/mockups.json", function (request, response) {
+        response.json(mockupJsonData);
+    });
+    server.ws("/", sockets.connect);
+    server.listen(port, () => {
+        util.log("Server up on port " + port);
+    });
+    return server;
+})(process.env.PORT || c.port);
 
 // Bring it to life
 setInterval(gameloop, room.cycleSpeed);
