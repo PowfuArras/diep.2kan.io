@@ -40,7 +40,7 @@
     "KNOCKBACK_CONSTANT": 1,
     "ROOM_BOUND_FORCE": 0.01,
     "CENSUS": {
-      "bots": 5,
+      "bots": 25,
       "foods": 225,
       "foodNests": 50,
       "mitosisRatio": 1.6,
