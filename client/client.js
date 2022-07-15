@@ -6,7 +6,7 @@ let lerp = (a, b, x) => a + x * (b - a);
 let lerpAngle = (a, b, x) => Math.atan2(lerp(Math.sin(a), Math.sin(b), x), lerp(Math.cos(a), Math.cos(b), x));
 
 // Fundamental requires <3
-var global = {
+const global = {
     // Keys and other mathematical constants
     KEY_ESC: 27,
     KEY_ENTER: 13,
@@ -67,18 +67,6 @@ var global = {
     lineColor: "#000000",
     server: "localhost:3000",
     scaleGuiRatio: 1,
-
-    changelog: (async function () {
-        const response = await fetch("updates.md", {
-            cache: "no-cache"
-        });
-        const response_1 = await response.text();
-        const changelogs = response_1.split("\n\n").map(changelog => changelog.split("\n"));
-        changelogs.forEach(changelog_1 => {
-            changelog_1[0] = changelog_1[0].split(":").map(line => line.trim());
-            document.getElementById("patchNotes").innerHTML += `<div><b>${changelog_1[0][0].slice(1).trim()}</b>: ${changelog_1[0].slice(1).join(":") || "Update lol"}<ul>${changelog_1.slice(1).map(line_1 => `<li>${line_1.slice(1).trim()}</li>`).join("")}</ul><hr></div>`;
-        });
-    })(),
     scrollbar: (function () {
         let clicked = false;
         let div = document.getElementById("startMenuSlidingTrigger");
@@ -95,7 +83,24 @@ var global = {
     })()
 };
 
-var util = (function (exports = {}) {
+fetch("updates.md", {
+    cache: "no-cache"
+}).then(response => response.text()).then(response => {
+    const changelogs = response.split("\n\r\n").map(changelog => changelog.split("\n")).reverse();
+    let d = false, extranum = 0, domlist = [];
+    changelogs.forEach(changelog => {
+        changelog[0] = changelog[0].split(":").map(line => line.trim());
+        let date = changelog[0][0].slice(1).trim();
+        if (d === date) extranum++;
+        else extranum = 0;
+        d = date;
+        domlist.push(`<div><b>${date}${extranum ? ` (${extranum + 1})` : ""}</b>: ${changelog[0].slice(1).join(":") || "Update lol"}<ul>${changelog.slice(1).map(line => `<li>${line.slice(1).trim()}</li>`).join("")}</ul><hr></div>`);
+    });
+    domlist = domlist.reverse()
+    for (let item of domlist) document.getElementById("patchNotes").innerHTML += item;
+});
+
+const util = (function (exports = {}) {
     exports.submitToLocalStorage = (name) => {
         localStorage.setItem(name + "Value", document.getElementById(name).value);
         localStorage.setItem(
@@ -202,7 +207,7 @@ var util = (function (exports = {}) {
 })();
 
 // Get color
-var config = {
+const config = {
     graphical: {
         screenshotMode: false,
         borderChunk: 6,
@@ -224,7 +229,7 @@ var config = {
         memory: 60,
     },
 };
-var color = {
+let color = {
     normal: {
         teal: "#7ADBBC",
         lgreen: "#B9E87E",
@@ -619,8 +624,8 @@ function setColor(context, givenColor) {
 }
 
 // Get mockups <3
-var mockups = [];
-util.pullJSON("mockups").then((data) => (mockups = data));
+let mockups = [];
+fetch(window.location.protocol + "//" + global.server + "/mockups.json").then(response=>response.json()).then(json=>mockups=json);
 
 // Mockup functions
 function getEntityImageFromMockup(index, color = mockups[index].color) {
@@ -759,7 +764,7 @@ global.statHover = false;
 global.upgradeHover = false;
 
 // Prepare stuff
-var player = {
+const player = {
     //Set up the player
     id: -1,
     x: global.screenWidth / 2,
@@ -772,11 +777,19 @@ var player = {
     slip: 0,
     view: 1,
     time: 0,
-    screenWidth: global.screenWidth,
-    screenHeight: global.screenHeight,
+    lastvx: 0,
+    lastvy: 0,
+    lastx: 0,
+    lasty: 0,
+    name: "",
+    lastUpdate: 0,
     target: {
         x: global.screenWidth / 2,
         y: global.screenHeight / 2,
+    },
+    instance: {
+        trex: 0,
+        trey: 0
     },
 };
 const Integrate = class {
@@ -918,7 +931,7 @@ const Leaderboard = class {
             if (value.old) delete this.entries[id];
     }
 };
-var entities = [],
+let entities = [],
     users = [],
     minimapAllInt = new Integrate(5),
     minimapTeamInt = new Integrate(3),
@@ -942,13 +955,9 @@ var entities = [],
     lastPing = 0,
     renderTimes = 0,
     updateTimes = 0,
-    target = {
-        x: player.x,
-        y: player.y,
-    },
     roomSetup = [["norm"]],
     roomSpeed = 0;
-var gui = {
+const gui = {
     getStatNames: (num) => {
         switch (num) {
             case 1:
@@ -1156,14 +1165,13 @@ global.clearUpgrades = () => {
     gui.upgrades = [];
 };
 // The ratio finder
-var getRatio = () => {
+const getRatio = () => {
     return Math.max(
         global.screenWidth / player.renderv,
         (global.screenHeight / player.renderv / 9) * 16
     );
 };
 
-global.target = target;
 global.player = player;
 global.canUpgrade = false;
 global.canSkill = false;
@@ -1174,19 +1182,12 @@ global.time = 0;
 global.mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(
     navigator.userAgent
 );
-var serverName = "Unknown Server";
+function resizeEvent() {
+    c.width = global.screenWidth = window.innerWidth;
+    c.height = global.screenHeight = window.innerHeight;
+};
 window.onload = () => {
-    // Server name stuff
-    switch (window.location.hostname) {
-        case "139.162.69.30":
-            serverName = "🇯🇵 arras-linode-tokyo";
-            break;
-        case "172.104.9.164":
-            serverName = "🇺🇸 arras-linode-newark";
-            break;
-    }
-    document.getElementById("serverName").innerHTML =
-        '<h4 class="nopadding">' + serverName + "</h4>";
+    document.getElementById("serverName").innerHTML = '<h4 class="nopadding">' + "Connected" + "</h4>";
     // Save forms
     util.retrieveFromLocalStorage("playerNameInput");
     util.retrieveFromLocalStorage("playerKeyInput");
@@ -1205,29 +1206,21 @@ window.onload = () => {
     // Game start stuff
     document.getElementById("startButton").onclick = () => startGame();
     document.onkeydown = (e) => {
-        var key = e.which || e.keyCode;
-        if (key === global.KEY_ENTER && (global.dead || !global.gameStart)) {
-            startGame();
-        }
+        if (e.keyCode === global.KEY_ENTER && (global.dead || !global.gameStart)) startGame();
     };
     // Resizing stuff
-    window.addEventListener("resize", () => {
-        player.screenWidth = c.width = global.screenWidth = window.innerWidth;
-        player.screenHeight = c.height = global.screenHeight = window.innerHeight;
-    });
+    window.addEventListener("resize", resizeEvent);
+    window.resizeEvent = resizeEvent;
+    resizeEvent();
 };
 
 // Prepare canvas stuff
 class Canvas {
     constructor(params) {
-        this.directionLock = false;
-        this.target = global.target;
-        this.reenviar = true;
         this.socket = global.socket;
-        this.directions = [];
-        var self = this;
         this.statMaxing = false;
         this.cv = document.getElementById("gameCanvas");
+        this.cv.parent = this;
         this.cv.width = global.screenWidth;
         this.cv.height = global.screenHeight;
         this.cv.addEventListener("mousemove", this.gameInput, false);
@@ -1235,44 +1228,11 @@ class Canvas {
         this.cv.addEventListener("keyup", this.keyboardUp, false);
         this.cv.addEventListener("mousedown", this.mouseDown, false);
         this.cv.addEventListener("mouseup", this.mouseUp, false);
-        this.cv.parent = self;
         global.canvas = this;
     }
 
     keyboardDown(event) {
         switch (event.keyCode) {
-            case 13:
-                if (global.died) this.parent.socket.talk("s", global.playerName, 0);
-                global.died = false;
-                break; // Enter to respawn
-            case global.KEY_UPGRADE_MAX:
-                this.statMaxing = true;
-                break;
-            case global.KEY_UP_ARROW:
-            case global.KEY_UP:
-                this.parent.socket.cmd.set(0, true);
-                break;
-            case global.KEY_DOWN_ARROW:
-            case global.KEY_DOWN:
-                this.parent.socket.cmd.set(1, true);
-                break;
-            case global.KEY_LEFT_ARROW:
-            case global.KEY_LEFT:
-                this.parent.socket.cmd.set(2, true);
-                break;
-            case global.KEY_RIGHT_ARROW:
-            case global.KEY_RIGHT:
-                this.parent.socket.cmd.set(3, true);
-                break;
-            case global.KEY_MOUSE_0:
-                this.parent.socket.cmd.set(4, true);
-                break;
-            case global.KEY_MOUSE_1:
-                this.parent.socket.cmd.set(5, true);
-                break;
-            case global.KEY_MOUSE_2:
-                this.parent.socket.cmd.set(6, true);
-                break;
             case global.KEY_LEVEL_UP:
                 this.parent.socket.talk("L");
                 break;
@@ -1282,6 +1242,13 @@ class Canvas {
         }
         if (!event.repeat) {
             switch (event.keyCode) {
+                case 13:
+                    if (global.died) this.parent.socket.talk("s", global.playerName, 0);
+                    global.died = false;
+                    break;
+                case global.KEY_UPGRADE_MAX:
+                    this.statMaxing = true;
+                    break;
                 case global.KEY_AUTO_SPIN:
                     this.parent.socket.talk("t", 0);
                     break;
@@ -1290,6 +1257,31 @@ class Canvas {
                     break;
                 case global.KEY_OVER_RIDE:
                     this.parent.socket.talk("t", 2);
+                    break;
+                case global.KEY_UP_ARROW:
+                case global.KEY_UP:
+                    this.parent.socket.cmd.set(0, true);
+                    break;
+                case global.KEY_DOWN_ARROW:
+                case global.KEY_DOWN:
+                    this.parent.socket.cmd.set(1, true);
+                    break;
+                case global.KEY_LEFT_ARROW:
+                case global.KEY_LEFT:
+                    this.parent.socket.cmd.set(2, true);
+                    break;
+                case global.KEY_RIGHT_ARROW:
+                case global.KEY_RIGHT:
+                    this.parent.socket.cmd.set(3, true);
+                    break;
+                case global.KEY_MOUSE_0:
+                    this.parent.socket.cmd.set(4, true);
+                    break;
+                case global.KEY_MOUSE_1:
+                    this.parent.socket.cmd.set(5, true);
+                    break;
+                case global.KEY_MOUSE_2:
+                    this.parent.socket.cmd.set(6, true);
                     break;
             }
             if (global.canSkill) {
@@ -1431,9 +1423,8 @@ class Canvas {
     }
     // Mouse location (we send target information in the heartbeat)
     gameInput(mouse) {
-        this.parent.target.x = mouse.clientX - this.width / 2;
-        this.parent.target.y = mouse.clientY - this.height / 2;
-        global.target = this.parent.target;
+        player.target.x = mouse.clientX - this.width / 2;
+        player.target.y = mouse.clientY - this.height / 2;
         global.statHover =
             global.clickables.hover.check({
                 x: mouse.clientX,
@@ -1442,10 +1433,10 @@ class Canvas {
     }
 }
 window.canvas = new Canvas();
-var c = window.canvas.cv;
-var ctx = c.getContext("2d");
-var c2 = document.createElement("canvas");
-var ctx2 = c2.getContext("2d");
+const c = window.canvas.cv;
+const ctx = c.getContext("2d");
+const c2 = document.createElement("canvas");
+const ctx2 = c2.getContext("2d");
 ctx2.imageSmoothingEnabled = false;
 
 // Animation things
@@ -1494,15 +1485,15 @@ function Smoothbar(value, speed, sharpness = 3) {
 }
 
 // Some stuff we need before we can set up the socket
-var sync = [];
-var clockDiff = 0;
-var serverStart = 0;
-var lag = (() => {
+let sync = [];
+let clockDiff = 0;
+let serverStart = 0;
+let lag = (() => {
     let lags = [];
     return {
         get: () => {
             if (!lags.length) return 0;
-            var sum = lags.reduce(function (a, b) {
+            let sum = lags.reduce(function (a, b) {
                 return a + b;
             });
             return sum / lags.length;
@@ -1515,23 +1506,7 @@ var lag = (() => {
         },
     };
 })();
-var getNow = () => {
-    return Date.now() - clockDiff - serverStart;
-};
-var player = {
-    vx: 0,
-    vy: 0,
-    lastvx: 0,
-    lastvy: 0,
-    renderx: player.x,
-    rendery: player.y,
-    lastx: player.x,
-    lasty: player.y,
-    target: window.canvas.target,
-    name: "",
-    lastUpdate: 0,
-    time: 0,
-};
+const getNow = () => Date.now() - clockDiff - serverStart;
 
 // Prepare the websocket for definition
 const socketInit = (() => {
@@ -1979,8 +1954,7 @@ const socketInit = (() => {
             // build the function
             return (arr, verbose = false) => {
                 let output = arr.shift();
-                if (typeof output !== "string")
-                    throw new Error("No identification code!");
+                if (typeof output !== "string") throw new Error("No identification code!");
                 arr.forEach((value) => (output += typeEncoder(findType(value), value)));
                 let len = output.length;
                 let buffer = new ArrayBuffer(len);
@@ -2420,12 +2394,8 @@ const socketInit = (() => {
                                     lastRender: player.time,
                                     x: z.x,
                                     y: z.y,
-                                    lastx:
-                                        z.x -
-                                        metrics.rendergap * config.roomSpeed * (1000 / 30) * z.vx,
-                                    lasty:
-                                        z.y -
-                                        metrics.rendergap * config.roomSpeed * (1000 / 30) * z.vy,
+                                    lastx: z.x - metrics.rendergap * config.roomSpeed * (1000 / 30) * z.vx,
+                                    lasty: z.y - metrics.rendergap * config.roomSpeed * (1000 / 30) * z.vy,
                                     lastvx: z.vx,
                                     lastvy: z.vy,
                                     lastf: z.facing,
@@ -2437,6 +2407,7 @@ const socketInit = (() => {
                                     status: Status(),
                                     health: Smoothbar(z.health, 0.5, 5),
                                     shield: Smoothbar(z.shield, 0.5, 5),
+                                    size: 1,
                                 };
                             }
                             // Update the rendering healthbars
@@ -2533,7 +2504,7 @@ const socketInit = (() => {
             })(),
             // Define our gui convertor
             gui: () => {
-                let index = get.next(),
+                const index = get.next(),
                     // Translate the encoded index
                     indices = {
                         topspeed: index & 0x0100,
@@ -2674,8 +2645,8 @@ const socketInit = (() => {
                     let ratio = getRatio();
                     socket.talk(
                         "C",
-                        Math.round(window.canvas.target.x / ratio),
-                        Math.round(window.canvas.target.y / ratio),
+                        Math.round((player.target.x - player.instance.trex) / ratio),
+                        Math.round((player.target.y - player.instance.trey) / ratio),
                         o
                     );
                 },
@@ -2726,9 +2697,7 @@ const socketInit = (() => {
                         // welcome to the game
                         if (m[0]) {
                             // Ask to spawn
-                            console.log(
-                                "The server has welcomed us to the game room. Sending spawn request."
-                            );
+                            console.log("The server has welcomed us to the game room. Sending spawn request.");
                             socket.talk("s", global.playerName, 0);
                             global.message = "";
                         }
@@ -2742,9 +2711,9 @@ const socketInit = (() => {
                         roomSetup = JSON.parse(m[2]);
                         serverStart = JSON.parse(m[3]);
                         config.roomSpeed = m[4];
-                        console.log("Room data recieved. Commencing syncing process.");
-                        // Start the syncing process
-                        socket.talk("S", getNow());
+                        console.log("Room data recieved. Beginning game.");
+                        global.gameStart = true;
+                        global.message = "";
                     }
                     break;
                 case "c":
@@ -2754,60 +2723,6 @@ const socketInit = (() => {
                         player.rendery = player.y = m[1];
                         player.renderv = player.view = m[2];
                         console.log("Camera moved!");
-                    }
-                    break;
-                case "S":
-                    {
-                        // clock syncing
-                        let clientTime = m[0],
-                            serverTime = m[1],
-                            laten = (getNow() - clientTime) / 2,
-                            delta = getNow() - laten - serverTime;
-                        // Add the datapoint to the syncing data
-                        sync.push({
-                            delta: delta,
-                            latency: laten,
-                        });
-                        // Do it again a couple times
-                        if (sync.length < 10) {
-                            // Wait a bit just to space things out
-                            setTimeout(() => {
-                                socket.talk("S", getNow());
-                            }, 10);
-                            global.message =
-                                "Syncing clocks, please do not tab away. " +
-                                sync.length +
-                                "/10...";
-                        } else {
-                            // Calculate the clock error
-                            sync.sort((e, f) => {
-                                return e.latency - f.latency;
-                            });
-                            let median = sync[Math.floor(sync.length / 2)].latency;
-                            let sd = 0,
-                                sum = 0,
-                                valid = 0;
-                            sync.forEach((e) => {
-                                sd += Math.pow(e.latency - median, 2);
-                            });
-                            sd = Math.sqrt(sd / sync.length);
-                            sync.forEach((e) => {
-                                if (Math.abs(e.latency - median) < sd) {
-                                    sum += e.delta;
-                                    valid++;
-                                }
-                            });
-                            clockDiff = Math.round(sum / valid);
-                            // Start the game
-                            console.log(sync);
-                            console.log(
-                                "Syncing complete, calculated clock difference " +
-                                clockDiff +
-                                "ms. Beginning game."
-                            );
-                            global.gameStart = true;
-                            global.message = "";
-                        }
                     }
                     break;
                 case "m":
@@ -3032,7 +2947,7 @@ const measureText = (() => {
     document.body.appendChild(div);
     return (text, fontSize, twod = false) => {
         fontSize += config.graphical.fontSizeBoost;
-        var w, h;
+        let w, h;
         div.style.font = "bold " + fontSize + "px Ubuntu";
         div.style.padding = "0";
         div.style.margin = "0";
@@ -3196,7 +3111,7 @@ const TextObj = (() => {
                 ctx.restore();
             },
             remove: () => {
-                var element = document.getElementById(canvasId);
+                let element = document.getElementById(canvasId);
                 if (element != null) element.parentNode.removeChild(element);
             },
         };
@@ -3267,13 +3182,13 @@ const drawEntity = (() => {
                 centerY + radius * Math.sin(angle)
             );
             for (let i = 0; i < sides; i++) {
-                var theta = ((i + 1) / sides) * 2 * Math.PI;
-                var htheta = ((i + 0.5) / sides) * 2 * Math.PI;
-                var c = {
+                let theta = ((i + 1) / sides) * 2 * Math.PI;
+                let htheta = ((i + 0.5) / sides) * 2 * Math.PI;
+                let c = {
                     x: centerX + radius * dip * Math.cos(htheta + angle),
                     y: centerY + radius * dip * Math.sin(htheta + angle),
                 };
-                var p = {
+                let p = {
                     x: centerX + radius * Math.cos(theta + angle),
                     y: centerY + radius * Math.sin(theta + angle),
                 };
@@ -3341,7 +3256,7 @@ const drawEntity = (() => {
     ) => {
         let context = assignedContext ? assignedContext : ctx;
         let fade = turretInfo ? 1 : render.status.getFade(),
-            drawSize = scale * ratio * instance.size,
+            drawSize = scale * ratio * (instance.render && instance.render.size ? instance.render.size : instance.size),
             m = mockups[instance.index],
             xx = x,
             yy = y,
@@ -3368,6 +3283,7 @@ const drawEntity = (() => {
         if (source.turrets.length === m.turrets.length) {
             for (let i = 0; i < m.turrets.length; i++) {
                 let t = m.turrets[i];
+                source.turrets[i].lerpedFacing == undefined ? source.turrets[i].lerpedFacing = source.turrets[i].facing : source.turrets[i].lerpedFacing = lerpAngle(source.turrets[i].lerpedFacing, source.turrets[i].facing, .1, true);
                 if (t.layer === 0) {
                     let ang = t.direction + t.angle + rot,
                         len = t.offset * drawSize;
@@ -3377,7 +3293,7 @@ const drawEntity = (() => {
                         t,
                         ratio,
                         (drawSize / ratio / t.size) * t.sizeFactor,
-                        source.turrets[i].facing + turretsObeyRot * rot,
+                        source.turrets[i].lerpedFacing + turretsObeyRot * rot,
                         turretsObeyRot,
                         context,
                         source.turrets[i],
@@ -3437,6 +3353,7 @@ const drawEntity = (() => {
         if (source.turrets.length === m.turrets.length) {
             for (let i = 0; i < m.turrets.length; i++) {
                 let t = m.turrets[i];
+                source.turrets[i].lerpedFacing == undefined ? source.turrets[i].lerpedFacing = source.turrets[i].facing : source.turrets[i].lerpedFacing = lerpAngle(source.turrets[i].lerpedFacing, source.turrets[i].facing, .1, true);
                 if (t.layer === 1) {
                     let ang = t.direction + t.angle + rot,
                         len = t.offset * drawSize;
@@ -3446,7 +3363,7 @@ const drawEntity = (() => {
                         t,
                         ratio,
                         (drawSize / ratio / t.size) * t.sizeFactor,
-                        source.turrets[i].facing + turretsObeyRot * rot,
+                        source.turrets[i].lerpedFacing + turretsObeyRot * rot,
                         turretsObeyRot,
                         context,
                         source.turrets[i],
@@ -3560,7 +3477,7 @@ const gameDraw = (() => {
     const upgradeMenu = Smoothbar(0, 2, 3);
     // Define the graph constructor
     function graph() {
-        var data = [];
+        let data = [];
         return (point, x, y, w, h, col) => {
             // Add point and push off old ones
             data.push(point);
@@ -3710,16 +3627,9 @@ const gameDraw = (() => {
         let px, py;
         {
             // Move the camera
-            let smear = {
-                x: 0,
-                y: 0,
-            }; // moveCompensation.get();
             GRAPHDATA = Math.random();
-            // Don't move the camera if you're dead. This helps with jitter issues
             player.renderx = lerp(player.renderx, player.x, 0.06);
             player.rendery = lerp(player.rendery, player.y, 0.06);
-            //player.renderx += (desiredx - player.renderx) / 5;
-            //player.rendery += (desiredy - player.rendery) / 5;
             px = ratio * player.renderx;
             py = ratio * player.rendery;
         }
@@ -3800,26 +3710,27 @@ const gameDraw = (() => {
             // Draw things
             entities.forEach(function entitydrawingloop(instance) {
                 if (!instance.render.draws) return 1;
+                let user = instance.id === gui.playerid;
                 instance.render.x = lerp(instance.render.x, instance.x + instance.vx, 0.1);
                 instance.render.y = lerp(instance.render.y, instance.y + instance.vy, 0.1);
-                instance.render.f = instance.id === gui.playerid && !instance.twiggle ? Math.atan2(target.y, target.x) : lerpAngle(instance.render.f, instance.facing + instance.vfacing, 0.1);
+                instance.render.size = lerp(instance.render.size, instance.size, 0.15);
                 let x = ratio * instance.render.x - px,
                     y = ratio * instance.render.y - py;
+                if (user) {
+                    player.instance = instance;
+                    player.instance.trex = x;
+                    player.instance.trey = y;
+                };
+                instance.render.f = user && !instance.twiggle ? Math.atan2(player.target.y - y, player.target.x - x) : lerpAngle(instance.render.f, instance.facing + instance.vfacing, 0.1);
                 x += global.screenWidth / 2;
                 y += global.screenHeight / 2;
                 drawEntity(x, y, instance, ratio, 1.1, instance.render.f);
+                ctx.globalAlpha = 1;
+                drawHealth(x, y, instance, ratio);
+                ctx.globalAlpha = 1;
             });
-            if (!config.graphical.screenshotMode) {
-                entities.forEach(function entityhealthdrawingloop(instance) {
-                    let x = ratio * instance.render.x - px,
-                        y = ratio * instance.render.y - py;
-                    x += global.screenWidth / 2;
-                    y += global.screenHeight / 2;
-                    drawHealth(x, y, instance, ratio);
-                });
-            }
         }
-        var scaleGui = (scale, scaleRatio) => {
+        const scaleGui = (scale, scaleRatio) => {
             global.screenWidth /= scale;
             global.screenHeight /= scale;
             ctx.scale(scale, scale);
@@ -4286,26 +4197,6 @@ const gameDraw = (() => {
             global.clickables.upgrade.hide();
             if (gui.upgrades.length > 0) {
                 global.canUpgrade = true;
-                var getClassUpgradeKey = function (number) {
-                    switch (number) {
-                        case 0:
-                            return "y";
-                        case 1:
-                            return "h";
-                        case 2:
-                            return "u";
-                        case 3:
-                            return "j";
-                        case 4:
-                            return "i";
-                        case 5:
-                            return "k";
-                        case 6:
-                            return "o";
-                        case 7:
-                            return "l";
-                    }
-                };
                 let internalSpacing = 14;
                 let len = alcoveSize / 2;
                 let height = len;
@@ -4360,15 +4251,6 @@ const gameDraw = (() => {
                         height / 8 - 3,
                         color.guiwhite,
                         "center"
-                    );
-                    // Upgrade key
-                    text.upgradeKeys[i - 1].draw(
-                        "[" + getClassUpgradeKey(ticker) + "]",
-                        x + len - 4,
-                        y + height - 6,
-                        height / 8 - 3,
-                        color.guiwhite,
-                        "right"
                     );
                     ctx.strokeStyle = color.black;
                     ctx.globalAlpha = 1;
@@ -4592,7 +4474,6 @@ const gameDrawDisconnected = (() => {
 function animloop() {
     global.animLoopHandle = window.requestAnimFrame(animloop);
     player.renderv += (player.view - player.renderv) / 30;
-    var ratio = config.graphical.screenshotMode ? 2 : getRatio();
     // Set the drawing style
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -4615,7 +4496,7 @@ function animloop() {
         metrics.lag = global.time - player.time;
     }
     if (global.gameStart) {
-        gameDraw(ratio);
+        gameDraw(config.graphical.screenshotMode ? 2 : getRatio());
     } else if (!global.disconnected) {
         gameDrawBeforeStart();
     }

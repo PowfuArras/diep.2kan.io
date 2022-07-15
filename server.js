@@ -9,7 +9,7 @@ goog.require('goog.structs.PriorityQueue');
 goog.require('goog.structs.QuadTree');
 
 // Import game settings.
-const c = require('./config.json');
+const c = require('./lib/setup.js').genshit;
 
 // Import utilities.
 const util = require('./lib/util');
@@ -40,11 +40,11 @@ const room = {
     ygrid: c.Y_GRID,
     gameMode: c.MODE,
     skillBoost: c.SKILL_BOOST,
+    tick: 0,
     scale: {
         square: c.WIDTH * c.HEIGHT / 100000000,
         linear: Math.sqrt(c.WIDTH * c.HEIGHT / 100000000),
     },
-    maxFood: c.WIDTH * c.HEIGHT / 20000 * c.FOOD_AMOUNT,
     isInRoom: location => {
         return location.x >= 0 && location.x <= c.WIDTH && location.y >= 0 && location.y <= c.HEIGHT
     },
@@ -147,28 +147,46 @@ room.gaussType = (type, clustering) => {
     } while (!room.isIn(type, location));
     return location;
 };
-util.log(room.width + ' x ' + room.height + ' room initalized.  Max food: ' + room.maxFood + ', max nest food: ' + (room.maxFood * room.nestFoodAmount) + '.');
+util.log(room.width + ' x ' + room.height + ' room initalized.');
 
 // Define a vector
 class Vector {
-    constructor(x, y) { //Vector constructor.
-        this.x = x;
-        this.y = y;
+    constructor(x, y) {
+        this.X = x;
+        this.Y = y;
     }
-
+    get x() {
+        if (isNaN(this.X)) this.X = c.MIN_SPEED;
+        return this.X;
+    }
+    get y() {
+        if (isNaN(this.Y)) this.Y = c.MIN_SPEED;
+        return this.Y;
+    }
+    set x(value) {
+        this.X = value;
+    }
+    set y(value) {
+        this.Y = value;
+    }
+    null() {
+        this.X = 0;
+        this.Y = 0;
+    }
     update() {
         this.len = this.length;
         this.dir = this.direction;
     }
-
+    isShorterThan(d) {
+        return this.x * this.x + this.y * this.y <= d * d;
+    }
     get length() {
         return Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2));
     }
-
     get direction() {
         return Math.atan2(this.y, this.x);
     }
-}
+};
 function nullVector(v) {
     v.x = 0; v.y = 0; //this guy's useful
 }
@@ -231,7 +249,8 @@ class IO {
         };
     }
 }
-class io_doNothing extends IO {
+const IOs = {};
+IOs.doNothing = class extends IO {
     constructor(body) {
         super(body);
         this.acceptsFromTop = false;
@@ -249,7 +268,7 @@ class io_doNothing extends IO {
         };
     }
 }
-class io_moveInCircles extends IO {
+IOs.moveInCircles = class extends IO {
     constructor(body) {
         super(body);
         this.acceptsFromTop = false;
@@ -271,7 +290,7 @@ class io_moveInCircles extends IO {
         return { goal: this.goal };
     }
 }
-class io_listenToPlayer extends IO {
+IOs.listenToPlayer = class extends IO {
     constructor(b, p) {
         super(b);
         this.player = p;
@@ -310,7 +329,7 @@ class io_listenToPlayer extends IO {
         };
     }
 }
-class io_mapTargetToGoal extends IO {
+IOs.mapTargetToGoal = class extends IO {
     constructor(b) {
         super(b);
     }
@@ -327,7 +346,7 @@ class io_mapTargetToGoal extends IO {
         }
     }
 }
-class io_boomerang extends IO {
+IOs.boomerang = class extends IO {
     constructor(b) {
         super(b);
         this.r = 0;
@@ -360,7 +379,7 @@ class io_boomerang extends IO {
         }
     }
 }
-class io_goToMasterTarget extends IO {
+IOs.goToMasterTarget = class extends IO {
     constructor(body) {
         super(body);
         this.myGoal = {
@@ -382,7 +401,7 @@ class io_goToMasterTarget extends IO {
         }
     }
 }
-class io_canRepel extends IO {
+IOs.canRepel = class extends IO {
     constructor(b) {
         super(b);
     }
@@ -399,7 +418,7 @@ class io_canRepel extends IO {
         }
     }
 }
-class io_alwaysFire extends IO {
+IOs.alwaysFire = class extends IO {
     constructor(body) {
         super(body);
     }
@@ -410,7 +429,7 @@ class io_alwaysFire extends IO {
         };
     }
 }
-class io_targetSelf extends IO {
+IOs.targetSelf = class extends IO {
     constructor(body) {
         super(body);
     }
@@ -422,7 +441,7 @@ class io_targetSelf extends IO {
         };
     }
 }
-class io_mapAltToFire extends IO {
+IOs.mapAltToFire = class extends IO {
     constructor(body) {
         super(body);
     }
@@ -435,7 +454,7 @@ class io_mapAltToFire extends IO {
         }
     }
 }
-class io_onlyAcceptInArc extends IO {
+IOs.onlyAcceptInArc = class extends IO {
     constructor(body) {
         super(body);
     }
@@ -452,95 +471,134 @@ class io_onlyAcceptInArc extends IO {
         }
     }
 }
-class io_nearestDifferentMaster extends IO {
+IOs.botMovement = class extends IO {
+    constructor(body) {
+        super(body);
+        this.goal = room.randomType("norm");
+        this.timer = Math.random() * 500 | 0;
+        this.defendTick = -1;
+        this.state = 1;
+    }
+    think(input) {
+        this.timer--;
+        if (input.target) {
+            if (this.timer <= 0 || util.getDistance(this.body, this.goal) < this.body.SIZE || this.state === 1) {
+                const target = {
+                    x: input.target.x + this.body.x,
+                    y: input.target.y + this.body.y
+                };
+                const angle = Math.atan2(target.y - this.body.y, target.x - this.body.x) + (Math.PI / 2 * (Math.random() - .5));
+                const dist = Math.random() * this.body.fov;
+                this.timer = Math.random() * 100 | 0;
+                this.goal = {
+                    x: target.x + Math.cos(angle) * dist,
+                    y: target.y + Math.sin(angle) * dist
+                };
+                this.state = 0;
+            }
+        } else {
+            if (this.timer <= 0 || util.getDistance(this.body, this.goal) < this.body.SIZE || this.state === 0) {
+                this.timer = Math.random() * 500 | 0;
+                this.state = 1;
+                this.goal = room.randomType(Math.random() > .9 ? "nest" : "norm");
+            }
+        }
+        return {
+            goal: this.goal
+        }
+    }
+}
+IOs.nearestDifferentMaster = class extends IO {
     constructor(body) {
         super(body);
         this.targetLock = undefined;
-        this.tick = ran.irandom(30);
+        this.tick = ran.irandom(200);
         this.lead = 0;
-        this.validTargets = this.buildList(body.fov / 2);
+        this.validTargets = this.buildList(body.fov);
         this.oldHealth = body.health.display();
     }
-
+    validate(e, m, mm, sqrRange, sqrRangeMaster) {
+        return (e.health.amount > 0) &&
+            (e.master.master.team !== this.body.master.master.team) &&
+            (e.master.master.team !== -1) &&
+            (this.body.aiSettings.seeInvisible || e.alpha > 0.5) &&
+            (this.body.settings.targetAmmo ? (e.type === "drone" || e.type === "minion" || e.type === "swarm" || e.type === "crasher") : (e.type === "tank" || e.type === "crasher" || e.type === "miniboss" || (!this.body.aiSettings.shapefriend && e.type === 'food'))) &&
+            (this.body.aiSettings.blind || ((e.x - m.x) * (e.x - m.x) < sqrRange && (e.y - m.y) * (e.y - m.y) < sqrRange)) &&
+            (this.body.aiSettings.skynet || ((e.x - mm.x) * (e.x - mm.x) < sqrRangeMaster && (e.y - mm.y) * (e.y - mm.y) < sqrRangeMaster));
+    }
     buildList(range) {
         // Establish whom we judge in reference to
-        let m = { x: this.body.x, y: this.body.y, },
-            mm = { x: this.body.master.master.x, y: this.body.master.master.y, },
-            mostDangerous = 0,
-            sqrRange = range * range,
+        let mostValuable = 0,
             keepTarget = false;
         // Filter through everybody...
-        let out = entities.map(e => {
-            // Only look at those within our view, and our parent's view, not dead, not our kind, not a bullet/trap/block etc
-            if (e.health.amount > 0) {
-                if (!e.invuln) {
-                    if (e.master.master.team !== this.body.master.master.team) {
-                        if (e.master.master.team !== -101) {
-                            if (e.type === 'tank' || e.type === 'crasher' || (!this.body.aiSettings.shapefriend && e.type === 'food')) {
-                                if (Math.abs(e.x - m.x) < range && Math.abs(e.y - m.y) < range) {
-                                    if (!this.body.aiSettings.blind || (Math.abs(e.x - mm.x) < range && Math.abs(e.y - mm.y) < range)) return e;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }).filter((e) => { return e; });
-
-        if (!out.length) return [];
-
-        out = out.map((e) => {
-            // Only look at those within range and arc (more expensive, so we only do it on the few)
-            let yaboi = false;
-            if (Math.pow(this.body.x - e.x, 2) + Math.pow(this.body.y - e.y, 2) < sqrRange) {
-                if (this.body.firingArc == null || this.body.aiSettings.view360) {
-                    yaboi = true;
-                } else if (Math.abs(util.angleDifference(util.getDirection(this.body, e), this.body.firingArc[0])) < this.body.firingArc[1]) yaboi = true;
-            }
-            if (yaboi) {
-                mostDangerous = Math.max(e.dangerValue, mostDangerous);
-                return e;
-            }
+        let out = entities.filter(e => {
+            // Only look at those within our view, and our parent's view, not dead, not invisible, not our kind, not a bullet/trap/block etc
+            return this.validate(e, {
+                x: this.body.x,
+                y: this.body.y,
+            }, {
+                x: this.body.master.master.x,
+                y: this.body.master.master.y,
+            }, range * range, range * range * 4 / 3);
         }).filter((e) => {
-            // Only return the highest tier of danger
-            if (e != null) {
-                if (this.body.aiSettings.farm || e.dangerValue === mostDangerous) {
-                    if (this.targetLock) { if (e.id === this.targetLock.id) keepTarget = true; }
-                    return e;
-                }
+            // Only look at those within range and arc (more expensive, so we only do it on the few)
+            if (this.body.firingArc == null || this.body.aiSettings.view360 || Math.abs(util.angleDifference(util.getDirection(this.body, e), this.body.firingArc[0])) < this.body.firingArc[1]) {
+                mostValuable = Math.max(e.skill.score, mostValuable);
+                return true;
             }
+            return false;
+        }).filter((e) => {
+            // Only return the highest tier of score
+            if (this.body.aiSettings.farm || e.skill.score === mostValuable) {
+                if (this.targetLock && e.id === this.targetLock.id) keepTarget = true;
+                return true;
+            }
+            return false;
         });
         // Reset target if it's not in there
         if (!keepTarget) this.targetLock = undefined;
         return out;
     }
-
     think(input) {
         // Override target lock upon other commands
         if (input.main || input.alt || this.body.master.autoOverride) {
-            this.targetLock = undefined; return {};
+            this.targetLock = undefined;
+            return {};
         }
         // Otherwise, consider how fast we can either move to ram it or shoot at a potiential target.
         let tracking = this.body.topSpeed,
-            range = this.body.fov / 2;
+            range = this.body.fov;
         // Use whether we have functional guns to decide
         for (let i = 0; i < this.body.guns.length; i++) {
             if (this.body.guns[i].canShoot && !this.body.aiSettings.skynet) {
                 let v = this.body.guns[i].getTracking();
                 tracking = v.speed;
-                range = Math.min(range, v.speed * v.range);
+                if (this.body.type === "miniboss" || this.body.master !== this.body) range = 640 * this.body.FOV;
+                else range = Math.min(range, (v.speed || 1) * (v.range || 90));
                 break;
             }
         }
+        if (!Number.isFinite(tracking)) {
+            tracking = this.body.topSpeed + .01;
+        }
+        if (!Number.isFinite(range)) {
+            range = 640 * this.body.FOV;
+        }
         // Check if my target's alive
         if (this.targetLock) {
-            if (this.targetLock.health.amount <= 0) {
+            if (!this.validate(this.targetLock, {
+                x: this.body.x,
+                y: this.body.y,
+            }, {
+                x: this.body.master.master.x,
+                y: this.body.master.master.y,
+            }, range * range, range * range * 4 / 3)) {
                 this.targetLock = undefined;
                 this.tick = 100;
             }
         }
         // Think damn hard
-        if (this.tick++ > 15 * roomSpeed) {
+        if (this.tick++ > 15 * c.gameSpeed) {
             this.tick = 0;
             this.validTargets = this.buildList(range);
             // Ditch our old target if it's invalid
@@ -549,16 +607,19 @@ class io_nearestDifferentMaster extends IO {
             }
             // Lock new target if we still don't have one.
             if (this.targetLock == null && this.validTargets.length) {
-                this.targetLock = (this.validTargets.length === 1) ? this.validTargets[0] : nearest(this.validTargets, { x: this.body.x, y: this.body.y });
+                this.targetLock = (this.validTargets.length === 1) ? this.validTargets[0] : nearest(this.validTargets, {
+                    x: this.body.x,
+                    y: this.body.y
+                });
                 this.tick = -90;
             }
         }
         // Lock onto whoever's shooting me.
-        // let damageRef = (this.body.bond == null) ? this.body : this.body.bond;
+        // let damageRef = (this.body.bond == null) ? this.body : this.body.bond
         // if (damageRef.collisionArray.length && damageRef.health.display() < this.oldHealth) {
-        //     this.oldHealth = damageRef.health.display();
+        //     this.oldHealth = damageRef.health.display()
         //     if (this.validTargets.indexOf(damageRef.collisionArray[0]) === -1) {
-        //         this.targetLock = (damageRef.collisionArray[0].master.id === -1) ? damageRef.collisionArray[0].source : damageRef.collisionArray[0].master;
+        //         this.targetLock = (damageRef.collisionArray[0].master.id === -1) ? damageRef.collisionArray[0].source : damageRef.collisionArray[0].master
         //     }
         // }
         // Consider how fast it's moving and shoot at it
@@ -567,15 +628,18 @@ class io_nearestDifferentMaster extends IO {
             let diff = {
                 x: this.targetLock.x - this.body.x,
                 y: this.targetLock.y - this.body.y,
-            };
+            }
             /// Refresh lead time
             if (this.tick % 4 === 0) {
-                this.lead = 0;
+                this.lead = 0
                 // Find lead time (or don't)
                 if (!this.body.aiSettings.chase) {
-                    let toi = timeOfImpact(diff, radial, tracking);
-                    this.lead = toi;
+                    let toi = timeOfImpact(diff, radial, tracking)
+                    this.lead = toi
                 }
+            }
+            if (!Number.isFinite(this.lead)) {
+                this.lead = 0;
             }
             // And return our aim
             return {
@@ -584,13 +648,13 @@ class io_nearestDifferentMaster extends IO {
                     y: diff.y + this.lead * radial.y,
                 },
                 fire: true,
-                main: true,
+                main: true
             };
         }
         return {};
     }
 }
-class io_avoid extends IO {
+IOs.avoid = class extends IO {
     constructor(body) {
         super(body);
     }
@@ -634,7 +698,7 @@ class io_avoid extends IO {
         }
     }
 }
-class io_minion extends IO {
+IOs.minion = class extends IO {
     constructor(body) {
         super(body);
         this.turnwise = 1;
@@ -689,7 +753,7 @@ class io_minion extends IO {
         }
     }
 }
-class io_hangOutNearMaster extends IO {
+IOs.hangOutNearMaster = class extends IO {
     constructor(body) {
         super(body);
         this.acceptsFromTop = false;
@@ -731,7 +795,7 @@ class io_hangOutNearMaster extends IO {
         }
     }
 }
-class io_spin extends IO {
+IOs.spin = class extends IO {
     constructor(b) {
         super(b);
         this.a = 0;
@@ -752,7 +816,7 @@ class io_spin extends IO {
         };
     }
 }
-class io_fastspin extends IO {
+IOs.fastspin = class extends IO {
     constructor(b) {
         super(b);
         this.a = 0;
@@ -773,7 +837,7 @@ class io_fastspin extends IO {
         };
     }
 }
-class io_reversespin extends IO {
+IOs.reversespin = class extends IO {
     constructor(b) {
         super(b);
         this.a = 0;
@@ -794,7 +858,7 @@ class io_reversespin extends IO {
         };
     }
 }
-class io_dontTurn extends IO {
+IOs.dontTurn = class extends IO {
     constructor(b) {
         super(b);
     }
@@ -809,7 +873,7 @@ class io_dontTurn extends IO {
         };
     }
 }
-class io_fleeAtLowHealth extends IO {
+IOs.fleeAtLowHealth = class extends IO {
     constructor(b) {
         super(b);
         this.fear = util.clamp(ran.gauss(0.7, 0.15), 0.1, 0.9);
@@ -1111,7 +1175,7 @@ class Gun {
                 let toAdd = [];
                 let self = this;
                 info.PROPERTIES.GUN_CONTROLLERS.forEach(function (ioName) {
-                    toAdd.push(eval('new ' + ioName + '(self)'));
+                    toAdd.push(new IOs[ioName](self));
                 });
                 this.controllers = toAdd.concat(this.controllers);
             }
@@ -1446,7 +1510,8 @@ var bringToLife = (() => {
     };
     return my => {
         // Size
-        if (my.SIZE - my.coreSize) my.coreSize += (my.SIZE - my.coreSize) / 100;
+        my.coreSize = my.SIZE;
+        //if (my.SIZE - my.coreSize) my.coreSize += (my.SIZE - my.coreSize) / 100;
         // Think 
         let faucet = (my.settings.independent || my.source == null || my.source === my) ? {} : my.source.control;
         let b = {
@@ -1725,7 +1790,7 @@ class Entity {
         if (set.CONTROLLERS != null) {
             let toAdd = [];
             set.CONTROLLERS.forEach((ioName) => {
-                toAdd.push(eval('new io_' + ioName + '(this)'));
+                toAdd.push(new IOs[ioName](this));
             });
             this.addController(toAdd);
         }
@@ -1827,9 +1892,6 @@ class Entity {
         }
         if (set.INVISIBLE != null) {
             this.invisible = set.INVISIBLE;
-        }
-        if (set.DANGER != null) {
-            this.dangerValue = set.DANGER;
         }
         if (set.VARIES_IN_SIZE != null) {
             this.settings.variesInSize = set.VARIES_IN_SIZE;
@@ -2064,7 +2126,7 @@ class Entity {
             alpha: this.alpha,
             facing: this.facing,
             vfacing: this.vfacing,
-            twiggle: this.facingType === 'autospin' || (this.facingType === 'locksFacing' && this.control.alt),
+            twiggle: this.facingType === 'locksFacing',
             layer: (this.bond != null) ? this.bound.layer :
                 (this.type === 'wall') ? 11 :
                     (this.type === 'food') ? 10 :
@@ -2927,15 +2989,6 @@ const sockets = (() => {
                         // Log it    
                         util.log('[INFO] ' + (m[0]) + (needsRoom ? ' joined' : ' rejoined') + ' the game! Players: ' + players.length);
                     } break;
-                    case 'S': { // clock syncing
-                        if (m.length !== 1) { socket.kick('Ill-sized sync packet.'); return 1; }
-                        // Get data
-                        let synctick = m[0];
-                        // Verify it
-                        if (typeof synctick !== 'number') { socket.kick('Weird sync packet.'); return 1; }
-                        // Bounce it back
-                        socket.talk('S', synctick, util.time());
-                    } break;
                     case 'p': { // ping
                         if (m.length !== 1) { socket.kick('Ill-sized ping.'); return 1; }
                         // Get data
@@ -3334,7 +3387,7 @@ const sockets = (() => {
                         body.name = "\u200b" + body.name;
                         body.define({ CAN_BE_ON_LEADERBOARD: false, });
                     }
-                    body.addController(new io_listenToPlayer(body, player)); // Make it listen
+                    body.addController(new IOs.listenToPlayer(body, player)); // Make it listen
                     body.sendMessage = content => messenger(socket, content); // Make it speak
                     body.invuln = true; // Make it safe
                     player.body = body;
@@ -4161,6 +4214,113 @@ var gameloop = (() => {
             }
             return 0;
         }
+        function wallcollide(wall, bounce) {
+            const width = wall.size;
+            const height = wall.size;
+            if (bounce.x + bounce.size < wall.x - width || bounce.x - bounce.size > wall.x + width || bounce.y + bounce.size < wall.y - height || bounce.y - bounce.size > wall.y + height) return 0;
+            if (wall.intangibility) return 0
+            let bounceBy = bounce.type === 'tank' ? 1 : bounce.type === 'miniboss' ? 2.5 : 0.1;
+            let left = bounce.x < wall.x - width;
+            let right = bounce.x > wall.x + width;
+            let top = bounce.y < wall.y - height;
+            let bottom = bounce.y > wall.y + height;
+            let leftExposed = bounce.x - bounce.size < wall.x - width;
+            let rightExposed = bounce.x + bounce.size > wall.x + width;
+            let topExposed = bounce.y - bounce.size < wall.y - height;
+            let bottomExposed = bounce.y + bounce.size > wall.y + height;
+            let intersected = true;
+            if (left && right) left = right = false;
+            if (top && bottom) top = bottom = false;
+            if (leftExposed && rightExposed) leftExposed = rightExposed = false;
+            if (topExposed && bottomExposed) topExposed = bottomExposed = false;
+            if ((left && !top && !bottom) || (leftExposed && !topExposed && !bottomExposed)) {
+                //bounce.accel.x -= (bounce.x + bounce.size - wall.x + width) * bounceBy;
+                if (bounce.accel.x > 0) {
+                    bounce.accel.x = 0;
+                    bounce.velocity.x = 0;
+                }
+                bounce.x = wall.x - width - bounce.size;
+            } else if ((right && !top && !bottom) || (rightExposed && !topExposed && !bottomExposed)) {
+                //bounce.accel.x -= (bounce.x - bounce.size - wall.x - width) * bounceBy;
+                if (bounce.accel.x < 0) {
+                    bounce.accel.x = 0;
+                    bounce.velocity.x = 0;
+                }
+                bounce.x = wall.x + width + bounce.size;
+            } else if ((top && !left && !right) || (topExposed && !leftExposed && !rightExposed)) {
+                //bounce.accel.y -= (bounce.y + bounce.size - wall.y + height) * bounceBy;
+                if (bounce.accel.y > 0) {
+                    bounce.accel.y = 0;
+                    bounce.velocity.y = 0;
+                }
+                bounce.y = wall.y - height - bounce.size;
+            } else if ((bottom && !left && !right) || (bottomExposed && !leftExposed && !rightExposed)) {
+                //bounce.accel.y -= (bounce.y - bounce.size - wall.y - height) * bounceBy;
+                if (bounce.accel.y < 0) {
+                    bounce.accel.y = 0;
+                    bounce.velocity.y = 0;
+                }
+                bounce.y = wall.y + height + bounce.size;
+            } else {
+                let x = leftExposed ? -width : rightExposed ? width : 0;
+                let y = topExposed ? -wall.size : bottomExposed ? height : 0;
+                let point = new Vector(wall.x + x - bounce.x, wall.y + y - bounce.y);
+                if (!x || !y) {
+                    if (bounce.x + bounce.y < wall.x + wall.y) { // top left
+                        if (bounce.x - bounce.y < wall.x - wall.y) { // bottom left
+                            //bounce.accel.x -= (bounce.x + bounce.size - wall.x + width) * bounceBy;
+                            if (bounce.accel.x > 0) {
+                                bounce.accel.x = 0;
+                                bounce.velocity.x = 0;
+                            }
+                            bounce.x = wall.x - width - bounce.size;
+                        } else { // top right
+                            //bounce.accel.y -= (bounce.y + bounce.size - wall.y + height) * bounceBy;
+                            if (bounce.accel.y > 0) {
+                                bounce.accel.y = 0;
+                                bounce.velocity.y = 0;
+                            }
+                            bounce.y = wall.y - height - bounce.size;
+                        }
+                    } else { // bottom right
+                        if (bounce.x - bounce.y < wall.x - wall.y) { // bottom left
+                            //bounce.accel.y -= (bounce.y - bounce.size - wall.y - height) * bounceBy;
+                            if (bounce.accel.y < 0) {
+                                bounce.accel.y = 0;
+                                bounce.velocity.y = 0;
+                            }
+                            bounce.y = wall.y + height + bounce.size;
+                        } else { // top right
+                            //bounce.accel.x -= (bounce.x - bounce.size - wall.x - width) * bounceBy;
+                            if (bounce.accel.x < 0) {
+                                bounce.accel.x = 0;
+                                bounce.velocity.x = 0;
+                            }
+                            bounce.x = wall.x + width + bounce.size;
+                        }
+                    }
+                } else if (!(left || right || top || bottom) || point.isShorterThan(bounce.size)) {
+                    if (bounce.accel.x < 0 || bounce.accel.x > 0) {
+                        bounce.accel.x = 0;
+                        bounce.velocity.x = 0;
+                    }
+                    if (bounce.accel.y < 0 || bounce.accel.y > 0) {
+                        bounce.accel.y = 0;
+                        bounce.velocity.y = 0;
+                    }
+                    if (right) {
+                        bounce.x = wall.x + width + bounce.size;
+                    } else {
+                        bounce.x = wall.x - width - bounce.size;
+                    }
+                    if (bottom) {
+                        bounce.y = wall.y + height + bounce.size;
+                    } else {
+                        bounce.y = wall.y - height - bounce.size;
+                    }
+                } else intersected = false;
+            };
+        }
         function advancedcollide(my, n, doDamage, doInelastic, nIsFirmCollide = false) {
             // Prepare to check
             let tock = Math.min(my.stepRemaining, n.stepRemaining),
@@ -4416,11 +4576,14 @@ var gameloop = (() => {
             if (!instance.activation.check() && !other.activation.check()) { util.warn('Tried to collide with an inactive instance.'); return 0; }
             // Handle walls
             if (instance.type === 'wall' || other.type === 'wall') {
-                let a = (instance.type === 'bullet' || other.type === 'bullet') ?
-                    1 + 10 / (Math.max(instance.velocity.length, other.velocity.length) + 10) :
-                    1;
-                if (instance.type === 'wall') advancedcollide(instance, other, false, false, a);
-                else advancedcollide(other, instance, false, false, a);
+                let wall = instance.type === 'wall' ? instance : other;
+                let notwall = instance.type === 'wall' ? other : instance;
+                if (wall.shape === 4) {
+                    if (instance.type !== 'wall' || other.type !== 'wall') wallcollide(wall, notwall);
+                } else {
+                    if (instance.type === 'wall') reflectcollide(instance, other);
+                    else reflectcollide(other, instance);
+                };
             } else
                 // If they can firm collide, do that
                 if ((instance.type === 'crasher' && other.type === 'food') || (other.type === 'crasher' && instance.type === 'food')) {
@@ -4505,6 +4668,13 @@ var gameloop = (() => {
         // Remove dead entities
         purgeEntities();
         room.lastCycle = util.time();
+        room.tick++;
+        if (!(room.tick % 20)) {
+            for (let instance of entities) {
+                if (instance.shield.max) instance.shield.regenerate();
+                if (instance.health.amount) instance.health.regenerate(instance.shield.max && instance.shield.max === instance.shield.amount);
+            };
+        };
     };
     //let expected = 1000 / c.gameSpeed / 30;
     //let alphaFactor = (delta > expected) ? expected / delta : 1;
@@ -4513,390 +4683,67 @@ var gameloop = (() => {
 })();
 // A less important loop. Runs at an actual 5Hz regardless of game speed.
 var maintainloop = (() => {
-    // Place obstacles
-    function placeRoids() {
-        function placeRoid(type, entityClass) {
-            let x = 0;
-            let position;
-            do {
-                position = room.randomType(type);
-                x++;
-                if (x > 200) { util.warn("Could not place some roids."); return 0; }
-            } while (dirtyCheck(position, 10 + entityClass.SIZE));
-            let o = new Entity(position);
-            o.define(entityClass);
-            o.team = -101;
-            o.facing = ran.randomAngle();
-            o.protect();
-            o.life();
-        }
-        // Start placing them
-        let roidcount = room.roid.length * room.width * room.height / room.xgrid / room.ygrid / 50000 / 1.5;
-        let rockcount = room.rock.length * room.width * room.height / room.xgrid / room.ygrid / 250000 / 1.5;
-        let count = 0;
-        for (let i = Math.ceil(roidcount); i; i--) { count++; placeRoid('roid', Class.obstacle); }
-        for (let i = Math.ceil(roidcount * 0.3); i; i--) { count++; placeRoid('roid', Class.babyObstacle); }
-        for (let i = Math.ceil(rockcount * 0.8); i; i--) { count++; placeRoid('rock', Class.obstacle); }
-        for (let i = Math.ceil(rockcount * 0.5); i; i--) { count++; placeRoid('rock', Class.babyObstacle); }
-        util.log('Placing ' + count + ' obstacles!');
-    }
-    placeRoids();
-    // Spawning functions
-    let spawnBosses = (() => {
-        let timer = 0;
-        let boss = (() => {
-            let i = 0,
-                names = [],
-                bois = [Class.egg],
-                n = 0,
-                begin = 'yo some shit is about to move to a lower position',
-                arrival = 'Something happened lol u should probably let Neph know this broke',
-                loc = 'norm';
-            let spawn = () => {
-                let spot, m = 0;
-                do {
-                    spot = room.randomType(loc); m++;
-                } while (dirtyCheck(spot, 500) && m < 30);
-                let o = new Entity(spot);
-                o.define(ran.choose(bois));
-                o.team = -100;
-                o.name = names[i++];
-            };
-            return {
-                prepareToSpawn: (classArray, number, nameClass, typeOfLocation = 'norm') => {
-                    n = number;
-                    bois = classArray;
-                    loc = typeOfLocation;
-                    names = ran.chooseBossName(nameClass, number);
-                    i = 0;
-                    if (n === 1) {
-                        begin = 'A visitor is coming.';
-                        arrival = names[0] + ' has arrived.';
-                    } else {
-                        begin = 'Visitors are coming.';
-                        arrival = '';
-                        for (let i = 0; i < n - 2; i++) arrival += names[i] + ', ';
-                        arrival += names[n - 2] + ' and ' + names[n - 1] + ' have arrived.';
-                    }
-                },
-                spawn: () => {
-                    sockets.broadcast(begin);
-                    for (let i = 0; i < n; i++) {
-                        setTimeout(spawn, ran.randomRange(3500, 5000));
-                    }
-                    // Wrap things up.
-                    setTimeout(() => sockets.broadcast(arrival), 5000);
-                    util.log('[SPAWN] ' + arrival);
-                },
-            };
-        })();
-        return census => {
-            if (timer > 6000 && ran.dice(16000 - timer)) {
-                util.log('[SPAWN] Preparing to spawn...');
-                timer = 0;
-                let choice = [];
-                switch (ran.chooseChance(40, 1)) {
-                    case 0:
-                        choice = [[Class.elite_destroyer], 2, 'a', 'nest'];
-                        break;
-                    case 1:
-                        choice = [[Class.palisade], 1, 'castle', 'norm'];
-                        sockets.broadcast('A strange trembling...');
-                        break;
-                }
-                boss.prepareToSpawn(...choice);
-                setTimeout(boss.spawn, 3000);
-                // Set the timeout for the spawn functions
-            } else if (!census.miniboss) timer++;
-        };
-    })();
-    let spawnCrasher = census => {
-        if (ran.chance(1 - 0.5 * census.crasher / room.maxFood / room.nestFoodAmount)) {
-            let spot, i = 30;
-            do { spot = room.randomType('nest'); i--; if (!i) return 0; } while (dirtyCheck(spot, 100));
-            let type = (ran.dice(80)) ? ran.choose([Class.sentryGun, Class.sentrySwarm, Class.sentryTrap]) : Class.crasher;
-            let o = new Entity(spot);
-            o.define(type);
-            o.team = -100;
-        }
+    const census = {
+        bots: [],
+        foods: [],
+        bosses: [],
+        obstacles: [],
+        foodNests: [],
+        crashers: [],
+        // Function to filter the dead
+        filter: type => census[type] = census[type].filter(o => !o.isDead())
     };
-    // The NPC function
-    let makenpcs = (() => {
-        // Make base protectors if needed.
-        /*let f = (loc, team) => { 
-            let o = new Entity(loc);
-                o.define(Class.baseProtector);
-                o.team = -team;
-                o.color = [10, 11, 12, 15][team-1];
-        };
-        for (let i=1; i<5; i++) {
-            room['bas' + i].forEach((loc) => { f(loc, i); }); 
-        }*/
-        // Return the spawning function
-        let bots = [];
-        return () => {
-            let census = {
-                crasher: 0,
-                miniboss: 0,
-                tank: 0,
-            };
-            let npcs = entities.map(function npcCensus(instance) {
-                if (census[instance.type] != null) {
-                    census[instance.type]++;
-                    return instance;
-                }
-            }).filter(e => { return e; });
-            // Spawning
-            spawnCrasher(census);
-            spawnBosses(census);
-            /*/ Bots
-                if (bots.length < c.BOTS) {
-                    let o = new Entity(room.random());
-                    o.color = 17;
-                    o.define(Class.bot);
-                    o.define(Class.basic);
-                    o.name += ran.chooseBotName();
-                    o.refreshBodyAttributes();
-                    o.color = 17;
-                    bots.push(o);
-                }
-                // Remove dead ones
-                bots = bots.filter(e => { return !e.isDead(); });
-                // Slowly upgrade them
-                bots.forEach(o => {
-                    if (o.skill.level < 45) {
-                        o.skill.score += 35;
-                        o.skill.maintain();
-                    }
-                });
-            */
-        };
-    })();
-    // The big food function
-    let makefood = (() => {
-        let food = [], foodSpawners = [];
-        // The two essential functions
-        function getFoodClass(level) {
-            let a = {};
-            switch (level) {
-                case 0: a = Class.egg; break;
-                case 1: a = Class.square; break;
-                case 2: a = Class.triangle; break;
-                case 3: a = Class.pentagon; break;
-                case 4: a = Class.bigPentagon; break;
-                case 5: a = Class.hugePentagon; break;
-                default: throw ('bad food level');
-            }
-            if (a !== {}) {
-                a.BODY.ACCELERATION = 0.015 / (a.FOOD.LEVEL + 1);
-            }
-            return a;
+    let config = c.CENSUS;
+
+    const spawnBot = (() => {
+        let botBuilds = [
+            [9, 9, 9, 9, 0, 0, 0, 0, 0, 9],
+            [3, 8, 8, 8, 7, 0, 0, 3, 0, 7],
+            [6, 8, 8, 8, 5, 0, 5, 5, 0, 2],
+            [3, 8, 8, 8, 7, 0, 3, 3, 0, 7],
+            [9, 9, 9, 9, 9, 0, 0, 0, 0, 0],
+            [8, 8, 8, 8, 8, 0, 0, 0, 0, 5],
+            [5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+            [6, 7, 7, 7, 6, 3, 2, 2, 3, 3],
+            [9, 7, 7, 7, 6, 0, 0, 0, 0, 9]
+        ];
+
+        function initWalls(x, y) {
+            let o = new Entity({x: x, y: y});
+            o.define(Class.wall)
+            o.SIZE = 128;
         }
-        let placeNewFood = (position, scatter, level, allowInNest = false) => {
-            let o = nearest(food, position);
-            let mitosis = false;
-            let seed = false;
-            // Find the nearest food and determine if we can do anything with it
-            if (o != null) {
-                for (let i = 50; i > 0; i--) {
-                    if (scatter == -1 || util.getDistance(position, o) < scatter) {
-                        if (ran.dice((o.foodLevel + 1) * (o.foodLevel + 1))) {
-                            mitosis = true; break;
-                        } else {
-                            seed = true; break;
-                        }
-                    }
-                }
-            }
-            // Decide what to do
-            if (scatter != -1 || mitosis || seed) {
-                // Splitting
-                if (o != null && (mitosis || seed) && room.isIn('nest', o) === allowInNest) {
-                    let levelToMake = (mitosis) ? o.foodLevel : level,
-                        place = {
-                            x: o.x + o.size * Math.cos(o.facing),
-                            y: o.y + o.size * Math.sin(o.facing),
-                        };
-                    let new_o = new Entity(place);
-                    new_o.define(getFoodClass(levelToMake));
-                    new_o.team = -100;
-                    new_o.facing = o.facing + ran.randomRange(Math.PI / 2, Math.PI);
-                    food.push(new_o);
-                    return new_o;
-                }
-                // Brand new
-                else if (room.isIn('nest', position) === allowInNest) {
-                    if (!dirtyCheck(position, 20)) {
-                        o = new Entity(position);
-                        o.define(getFoodClass(level));
-                        o.team = -100;
-                        o.facing = ran.randomAngle();
-                        food.push(o);
-                        return o;
-                    }
-                }
-            }
-        };
-        // Define foodspawners
-        class FoodSpawner {
-            constructor() {
-                this.foodToMake = Math.ceil(Math.abs(ran.gauss(0, room.scale.linear * 80)));
-                this.size = Math.sqrt(this.foodToMake) * 25;
+        for (let i = 0; i < 25; i++) initWalls(room.width * Math.random(), room.height * Math.random());
 
-                // Determine where we ought to go
-                let position = {}; let o;
-                do {
-                    position = room.gaussRing(1 / 3, 20);
-                    o = placeNewFood(position, this.size, 0);
-                } while (o == null);
-
-                // Produce a few more
-                for (let i = Math.ceil(Math.abs(ran.gauss(0, 4))); i <= 0; i--) {
-                    placeNewFood(o, this.size, 0);
-                }
-
-                // Set location
-                this.x = o.x;
-                this.y = o.y;
-                //util.debug('FoodSpawner placed at ('+this.x+', '+this.y+'). Set to produce '+this.foodToMake+' food.');
-            }
-            rot() {
-                if (--this.foodToMake < 0) {
-                    //util.debug('FoodSpawner rotted, respawning.');
-                    util.remove(foodSpawners, foodSpawners.indexOf(this));
-                    foodSpawners.push(new FoodSpawner());
-                }
-            }
-        }
-        // Add them
-        foodSpawners.push(new FoodSpawner());
-        foodSpawners.push(new FoodSpawner());
-        foodSpawners.push(new FoodSpawner());
-        foodSpawners.push(new FoodSpawner());
-        // Food making functions 
-        let makeGroupedFood = () => { // Create grouped food
-            // Choose a location around a spawner
-            let spawner = foodSpawners[ran.irandom(foodSpawners.length - 1)],
-                bubble = ran.gaussRing(spawner.size, 1 / 4);
-            placeNewFood({ x: spawner.x + bubble.x, y: spawner.y + bubble.y, }, -1, 0);
-            spawner.rot();
-        };
-        let makeDistributedFood = () => { // Distribute food everywhere
-            //util.debug('Creating new distributed food.');
-            let spot = {};
-            do { spot = room.gaussRing(1 / 2, 2); } while (room.isInNorm(spot));
-            placeNewFood(spot, 0.01 * room.width, 0);
-        };
-        let makeCornerFood = () => { // Distribute food in the corners
-            let spot = {};
-            do { spot = room.gaussInverse(5); } while (room.isInNorm(spot));
-            placeNewFood(spot, 0.05 * room.width, 0);
-        };
-        let makeNestFood = () => { // Make nest pentagons
-            let spot = room.randomType('nest');
-            placeNewFood(spot, 0.01 * room.width, 3, true);
-        };
-        // Return the full function
-        return () => {
-            // Find and understand all food
-            let census = {
-                [0]: 0, // Egg
-                [1]: 0, // Square
-                [2]: 0, // Triangle
-                [3]: 0, // Penta
-                [4]: 0, // Beta
-                [5]: 0, // Alpha
-                [6]: 0,
-                tank: 0,
-                sum: 0,
-            };
-            let censusNest = {
-                [0]: 0, // Egg
-                [1]: 0, // Square
-                [2]: 0, // Triangle
-                [3]: 0, // Penta
-                [4]: 0, // Beta
-                [5]: 0, // Alpha
-                [6]: 0,
-                sum: 0,
-            };
-            // Do the censusNest
-            food = entities.map(instance => {
-                try {
-                    if (instance.type === 'tank') {
-                        census.tank++;
-                    } else if (instance.foodLevel > -1) {
-                        if (room.isIn('nest', { x: instance.x, y: instance.y, })) { censusNest.sum++; censusNest[instance.foodLevel]++; }
-                        else { census.sum++; census[instance.foodLevel]++; }
-                        return instance;
-                    }
-                } catch (err) { util.error(instance.label); util.error(err); instance.kill(); }
-            }).filter(e => { return e; });
-            // Sum it up   
-            let maxFood = 1 + room.maxFood + 15 * census.tank;
-            let maxNestFood = 1 + room.maxFood * room.nestFoodAmount;
-            let foodAmount = census.sum;
-            let nestFoodAmount = censusNest.sum;
-            /*********** ROT OLD SPAWNERS **********/
-            foodSpawners.forEach(spawner => { if (ran.chance(1 - foodAmount / maxFood)) spawner.rot(); });
-            /************** MAKE FOOD **************/
-            while (ran.chance(0.8 * (1 - foodAmount * foodAmount / maxFood / maxFood))) {
-                switch (ran.chooseChance(10, 2, 1)) {
-                    case 0: makeGroupedFood(); break;
-                    case 1: makeDistributedFood(); break;
-                    case 2: makeCornerFood(); break;
-                }
-            }
-            while (ran.chance(0.5 * (1 - nestFoodAmount * nestFoodAmount / maxNestFood / maxNestFood))) makeNestFood();
-            /************* UPGRADE FOOD ************/
-            if (!food.length) return 0;
-            for (let i = Math.ceil(food.length / 100); i > 0; i--) {
-                let o = food[ran.irandom(food.length - 1)], // A random food instance
-                    oldId = -1000,
-                    overflow, location;
-                // Bounce 6 times
-                for (let j = 0; j < 6; j++) {
-                    overflow = 10;
-                    // Find the nearest one that's not the last one
-                    do {
-                        o = nearest(food, { x: ran.gauss(o.x, 30), y: ran.gauss(o.y, 30), });
-                    } while (o.id === oldId && --overflow);
-                    if (!overflow) continue;
-                    // Configure for the nest if needed
-                    let proportions = c.FOOD,
-                        cens = census,
-                        amount = foodAmount;
-                    if (room.isIn('nest', o)) {
-                        proportions = c.FOOD_NEST;
-                        cens = censusNest;
-                        amount = nestFoodAmount;
-                    }
-                    // Upgrade stuff
-                    o.foodCountup += Math.ceil(Math.abs(ran.gauss(0, 10)));
-                    while (o.foodCountup >= (o.foodLevel + 1) * 100) {
-                        o.foodCountup -= (o.foodLevel + 1) * 100;
-                        if (ran.chance(1 - cens[o.foodLevel + 1] / amount / proportions[o.foodLevel + 1])) {
-                            o.define(getFoodClass(o.foodLevel + 1));
-                        }
-                    }
-                }
-            }
-        };
+        return (() => {
+            let o = new Entity(room.randomType("norm"));
+            o.invuln = true;
+            // Random angle
+            o.control.target = { x: 1 - 2 * Math.random(), y: 1 - 2 * Math.random() };
+            o.define(Class.basic);
+            o.name = "" + ran.chooseBotName();
+            o.color = 12;
+            o.skill.score = 26302;
+            o.facing = ran.randomAngle();
+            census.bots.push(o);
+            setTimeout(function () {
+                if (!o || o.isDead()) return;
+                o.invuln = false;
+                o.skill.set(ran.choose(botBuilds));
+                o.define({ CONTROLLERS: ["nearestDifferentMaster", "mapAltToFire", "botMovement", "fleeAtLowHealth"] });
+            }, 3000 + (Math.floor(Math.random() * 7000)));
+        })
     })();
-    // Define food and food spawning
+
     return () => {
-        // Do stuff
-        makenpcs();
-        makefood();
-        // Regen health and update the grid
-        entities.forEach(instance => {
-            if (instance.shield.max) {
-                instance.shield.regenerate();
-            }
-            if (instance.health.amount) {
-                instance.health.regenerate(instance.shield.max && instance.shield.max === instance.shield.amount);
-            }
-        });
+        census.filter("bots");
+        census.filter("foods");
+        census.filter("bosses");
+        census.filter("obstacles");
+        census.filter("foodNests");
+        census.filter("crashers");
+
+        if (config.bots > census.bots.length) spawnBot();
     };
 })();
 // This is the checking loop. Runs at 1Hz.
@@ -4946,7 +4793,7 @@ const app = (function (port) {
     const expressWS = require("express-ws");
     const server = express();
     expressWS(server);
-    server.use(minify());
+    //server.use(minify());
     server.use(cors());
     server.use(express.static("client"));
     server.use(express.json());
@@ -4963,10 +4810,13 @@ const app = (function (port) {
     server.listen(port, () => {
         util.log("Server up on port " + port);
     });
+    server.get("*", function (request, response) {
+        response.sendFile(__dirname + "/client/index.html")
+    });
     return server;
 })(process.env.PORT || c.port);
 
 // Bring it to life
 setInterval(gameloop, room.cycleSpeed);
-setInterval(maintainloop, 200);
+setInterval(maintainloop, 1000);
 setInterval(speedcheckloop, 1000);
